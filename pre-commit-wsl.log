@@ -1,0 +1,8 @@
+[WARNING] hook id `ament_lint_cmake` uses deprecated stage names (commit) which will be removed in a future version.  run: `pre-commit migrate-config` to automatically fix this.
+[INFO] Initializing environment for https://github.com/pre-commit/pre-commit-hooks.
+An unexpected error has occurred: CalledProcessError: command: ('/usr/bin/git', 'fetch', 'origin', '--tags')
+return code: 128
+stdout: (none)
+stderr:
+    fatal: unable to access 'https://github.com/pre-commit/pre-commit-hooks/': gnutls_handshake() failed: The TLS connection was non-properly terminated.
+Check the log at /home/xxy/.cache/pre-commit/pre-commit.log

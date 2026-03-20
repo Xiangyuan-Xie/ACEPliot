@@ -1,0 +1,52 @@
+# Prerequisites
+*.d
+
+# Compiled Object Files
+*.slo
+*.lo
+*.o
+*.obj
+
+# Precompiled Headers
+*.gch
+*.pch
+
+# Linker Files
+*.ilk
+
+# Debugger Files
+*.pdb
+
+# Compiled Dynamic Libraries
+*.so
+*.dylib
+*.dll
+
+# Fortran Module Files
+*.mod
+*.smod
+
+# Compiled Static Libraries
+*.lai
+*.la
+*.a
+*.lib
+
+# Executables
+*.exe
+*.out
+*.app
+
+# Debug Information Files
+*.dwo
+
+# Visual Studio Code
+.vscode/*
+
+# Model Files
+px4_external_modes/*/weights/*.onnx
+px4_external_modes/*/weights/*.pt
+px4_external_modes/*/weights/.gitkeep
+
+# Logs
+px4_external_modes/*/logs/

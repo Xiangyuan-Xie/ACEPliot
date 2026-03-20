@@ -1,0 +1,99 @@
+# Doxyfile 1.9.1 (Customized for ACEPliot)
+
+#---------------------------------------------------------------------------
+# Project related configuration options
+#---------------------------------------------------------------------------
+
+# The PROJECT_NAME tag is a single word (or a sequence of words surrounded
+# by quotes) that should identify the project.
+PROJECT_NAME           = "ACEPliot"
+
+# The PROJECT_BRIEF tag can be used to introduce a brief description of
+# the project that appears in the generated documentation.
+PROJECT_BRIEF          = "ACEPliot ROS/C++ Framework Documentation"
+
+# The OUTPUT_DIRECTORY tag is used to specify the (relative or absolute)
+# base path where the generated documentation will be put.
+OUTPUT_DIRECTORY       = docs
+
+# If the USE_MDFILE_AS_MAINPAGE tag refers to the name of a markdown file that
+# is part of the input, its contents will be placed on the main page
+# (index.html).
+USE_MDFILE_AS_MAINPAGE = README.md
+
+#---------------------------------------------------------------------------
+# Build related configuration options
+#---------------------------------------------------------------------------
+
+# If the EXTRACT_ALL tag is set to YES, doxygen will assume all entities in
+# documentation are documented, even if no documentation was available.
+EXTRACT_ALL            = YES
+
+# If the EXTRACT_PRIVATE tag is set to YES, all private members of a class
+# will be included in the documentation.
+EXTRACT_PRIVATE        = YES
+
+# If the EXTRACT_STATIC tag is set to YES, all static members of a file
+# will be included in the documentation.
+EXTRACT_STATIC         = YES
+
+#---------------------------------------------------------------------------
+# Configuration options related to the input files
+#---------------------------------------------------------------------------
+
+# The INPUT tag can be used to specify the files and/or directories that contain
+# documented source files. You may enter file names like "myfile.cpp" or
+# directories like "/usr/src/myproject".
+INPUT                  = px4_external_modes \
+                         px4_state_converter \
+                         README.md
+
+# The FILE_PATTERNS tag can be used to specify one or more wildcard pattern
+# (like *.cpp and *.h) to filter out the source-files in the directories.
+FILE_PATTERNS          = *.c \
+                         *.cc \
+                         *.cxx \
+                         *.cpp \
+                         *.c++ \
+                         *.h \
+                         *.hh \
+                         *.hxx \
+                         *.hpp \
+                         *.h++ \
+                         *.inl \
+                         *.py \
+                         *.md
+
+# The RECURSIVE tag can be used to turn specify whether or not subdirectories
+# should be searched for input files as well.
+RECURSIVE              = YES
+
+# The EXCLUDE tag can be used to specify files and/or directories that should be
+# excluded from the INPUT source files.
+EXCLUDE                = third_party
+
+#---------------------------------------------------------------------------
+# Configuration options related to HTML/LaTeX/XML/RTF/Man formats
+#---------------------------------------------------------------------------
+
+# If the GENERATE_HTML tag is set to YES (the default) doxygen will
+# generate HTML output.
+GENERATE_HTML          = YES
+
+# If the GENERATE_LATEX tag is set to YES doxygen will generate LaTeX output.
+# We set this to NO to save compilation time unless specifically required.
+GENERATE_LATEX         = NO
+
+#---------------------------------------------------------------------------
+# Configuration options related to DOT (Graphviz)
+#---------------------------------------------------------------------------
+
+# If the HAVE_DOT tag is set to YES, doxygen will assume the dot tool is
+# available from Graphviz. Set this to YES if Graphviz is installed.
+HAVE_DOT               = NO
+
+# If the CALL_GRAPH and CALLER_GRAPH tags are set to YES then doxygen will
+# generate a call dependency graph for every global function or class method.
+# (Requires HAVE_DOT=YES to take effect)
+CALL_GRAPH             = YES
+CALLER_GRAPH           = YES

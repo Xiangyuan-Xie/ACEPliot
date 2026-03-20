@@ -1,0 +1,8 @@
+[submodule "third_party/px4_msgs"]
+	path = third_party/px4_msgs
+	url = https://github.com/PX4/px4_msgs
+	branch = main
+[submodule "third_party/px4-ros2-interface-lib"]
+	path = third_party/px4-ros2-interface-lib
+	url = https://github.com/Auterion/px4-ros2-interface-lib
+	branch = main

@@ -1,0 +1,10 @@
+/**:
+    ros__parameters:
+
+      sensor_name: "lidar"
+      odom_frame: "world"
+      sensor_frame: "lidar_link"
+      odom_topic: "/lidar_slam/odom"
+
+      sensor_translation: [0.0, 0.0, -0.1]
+      sensor_rotation_matrix: [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0]

@@ -1,0 +1,10 @@
+/**:
+    ros__parameters:
+
+      sensor_name: "imu"
+      odom_frame: "world"
+      sensor_frame: "imu_link"
+      odom_topic: "/imu/odom"
+
+      sensor_translation: [0.0, 0.0, 0.0]
+      sensor_rotation_matrix: [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0]

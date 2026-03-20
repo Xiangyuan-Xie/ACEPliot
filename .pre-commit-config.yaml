@@ -1,0 +1,40 @@
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-added-large-files
+
+  - repo: https://github.com/pocc/pre-commit-hooks
+    rev: v1.3.5
+    hooks:
+      - id: cppcheck
+        name: cppcheck
+        description: Run cppcheck for C++ static analysis (finds bugs, memory leaks).
+        args: ["--enable=warning,performance,portability", "--error-exitcode=1", "--suppress=missingIncludeSystem"]
+      - id: cpplint
+        name: cpplint
+        description: Check C++ code against the Google C++ Style Guide.
+        args: ["--filter=-legal/copyright", "--linelength=100"]
+
+  - repo: local
+    hooks:
+      - id: ament_uncrustify
+        name: ament_uncrustify
+        description: Format files with uncrustify.
+        entry: ament_uncrustify
+        language: system
+        files: \.(c|cc|cxx|cpp|frag|glsl|h|hpp|hxx|ih|ispc|ipp|java|js|m|proto|vert)$
+        args: ["--reformat"]
+
+  - repo: local
+    hooks:
+      - id: ament_lint_cmake
+        name: ament_lint_cmake
+        description: Check format of CMakeLists.txt files.
+        stages: [commit]
+        entry: ament_lint_cmake
+        language: system
+        files: CMakeLists\.txt$
