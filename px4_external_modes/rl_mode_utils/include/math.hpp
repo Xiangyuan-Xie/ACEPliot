@@ -3,6 +3,7 @@
 #include <Eigen/Core>
 #include <Eigen/Geometry>
 #include <optional>
+#include <tuple>
 #include <utility>
 #include <vector>
 #include <algorithm>
@@ -45,3 +46,26 @@ std::vector<T> clamp_vector(const std::vector<T> & vec, T min_val, T max_val)
     [min_val, max_val](T val) {return std::clamp(val, min_val, max_val);});
   return result;
 }
+
+/**
+ * @brief Extracts intrinsic XYZ Euler angles (roll, pitch, yaw) from a quaternion.
+ * @param q Input quaternion.
+ * @return Tuple of (roll, pitch, yaw) in radians.
+ */
+std::tuple<float, float, float> euler_xyz_from_quat(const Eigen::Quaternionf & q);
+
+/**
+ * @brief Constructs a quaternion from intrinsic XYZ Euler angles.
+ * @param roll Rotation about X axis in radians.
+ * @param pitch Rotation about Y axis in radians.
+ * @param yaw Rotation about Z axis in radians.
+ * @return Resulting quaternion.
+ */
+Eigen::Quaternionf quat_from_euler_xyz(float roll, float pitch, float yaw);
+
+/**
+ * @brief Converts a quaternion to a 3×3 rotation matrix.
+ * @param q Input quaternion.
+ * @return Corresponding rotation matrix.
+ */
+Eigen::Matrix3f rotation_matrix_from_quat(const Eigen::Quaternionf & q);

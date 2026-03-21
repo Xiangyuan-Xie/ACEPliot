@@ -4,7 +4,6 @@ from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument
 from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
-from launch.actions import ExecuteProcess
 
 
 def generate_launch_description() -> LaunchDescription:
@@ -17,6 +16,10 @@ def generate_launch_description() -> LaunchDescription:
         'use_sim_time', default_value='false', description='Use simulation time')
     use_ros2_odom_arg = DeclareLaunchArgument(
         'use_ros2_odom', default_value='false', description='Use external ROS2 odometry')
+    cmd_vel_topic_arg = DeclareLaunchArgument(
+        'cmd_vel_topic', default_value='/rl_arm_position/cmd_vel', description='External cmd_vel topic')
+    cmd_vel_timeout_s_arg = DeclareLaunchArgument(
+        'cmd_vel_timeout_s', default_value='0.5', description='External command timeout (s)')
 
     position_mode_node = Node(
         package='rl_mc_arm_position_mode',
@@ -25,17 +28,16 @@ def generate_launch_description() -> LaunchDescription:
             'model_path': LaunchConfiguration('model_path'),
             'use_sim_time': LaunchConfiguration('use_sim_time'),
             'use_ros2_odom': LaunchConfiguration('use_ros2_odom'),
+            'cmd_vel_topic': LaunchConfiguration('cmd_vel_topic'),
+            'cmd_vel_timeout_s': LaunchConfiguration('cmd_vel_timeout_s'),
         }]
-    )
-
-    micro_xrce_agent_process = ExecuteProcess(
-        cmd=['MicroXRCEAgent', 'udp4', '-p', '8888'],
     )
 
     return LaunchDescription([
         model_path_arg,
         use_sim_time_arg,
         use_ros2_odom_arg,
-        micro_xrce_agent_process,
+        cmd_vel_topic_arg,
+        cmd_vel_timeout_s_arg,
         position_mode_node,
     ])

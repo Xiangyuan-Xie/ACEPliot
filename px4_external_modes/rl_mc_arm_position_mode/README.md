@@ -19,6 +19,10 @@
 - `model_path`：ONNX 模型路径
 - `use_sim_time`：是否使用仿真时钟
 - `use_ros2_odom`：是否使用外部 ROS2 里程计
+- `cmd_vel_topic`：外部速度命令话题（`geometry_msgs/TwistStamped`，默认 `/rl_arm_position/cmd_vel`）
+- `cmd_vel_timeout_s`：外部速度命令超时秒数（默认 `0.5`）
+
+命令输入来源固定为外部 `cmd_vel`。当外部命令超时后，模式会进入悬停锁定（锁当前位置与偏航，速度命令归零）。
 
 仅 `rl_mc_arm_position_rates_thrust_mode` 使用：
 - `max_body_rate_rad_s`：角速率缩放上限（rad/s）
@@ -48,4 +52,11 @@ ros2 launch rl_mc_arm_position_mode sim_mc_arm_position_direct_actuators.launch.
 
 ```bash
 ros2 launch rl_mc_arm_position_mode sim_mc_arm_position_rates_thrust.launch.py
+```
+
+外部速度命令示例（机体系，`x前/y左/z上`，`angular.z` 为偏航角速度）：
+
+```bash
+ros2 topic pub /rl_arm_position/cmd_vel geometry_msgs/msg/TwistStamped \
+"{header: {stamp: {sec: 0, nanosec: 0}, frame_id: 'base_link'}, twist: {linear: {x: 0.5, y: 0.0, z: 0.0}, angular: {x: 0.0, y: 0.0, z: 0.0}}}" -r 20
 ```

@@ -6,7 +6,7 @@
 #include <string>
 
 /// @brief Default mode name for the rates-plus-thrust arm-position variant.
-static constexpr char kArmPositionRatesThrustModeName[] = "RL Arm Position Rates Thrust";
+static constexpr char kArmPositionRatesThrustModeName[] = "RL Arm Position";
 
 /**
  * @class RlMCArmPositionRatesThrustMode

@@ -24,10 +24,9 @@ find_package(geometry_msgs REQUIRED)
 find_package(std_msgs REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(cv_bridge REQUIRED)
-find_package(OpenCV REQUIRED)
 find_package(tf2_msgs REQUIRED)
 
-include_directories(include SYSTEM ${Eigen3_INCLUDE_DIRS} ${OpenCV_INCLUDE_DIRS})
+include_directories(include SYSTEM ${Eigen3_INCLUDE_DIRS})
 
 set(HEADER_FILES
     include/rl_mode.hpp
@@ -55,7 +54,6 @@ ament_target_dependencies(rl_base_mode
 
 target_link_libraries(rl_base_mode
     Eigen3::Eigen
-    ${OpenCV_LIBS}
 )
 
 ament_export_targets(rl_base_mode HAS_LIBRARY_TARGET)
@@ -65,7 +63,6 @@ ament_export_dependencies(
     rclcpp
     eigen3_cmake_module
     Eigen3
-    OpenCV
     geometry_msgs
     nav_msgs
     std_msgs

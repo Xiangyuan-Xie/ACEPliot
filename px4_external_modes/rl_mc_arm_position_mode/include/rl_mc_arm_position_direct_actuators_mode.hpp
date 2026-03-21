@@ -13,16 +13,18 @@
 #pragma once
 
 #include <Eigen/Core>
+#include <Eigen/Geometry>
 #include <memory>
 #include <string>
 #include <vector>
 #include <arm_robot_data.hpp>
+#include <geometry_msgs/msg/twist_stamped.hpp>
 #include <observation_buffer.hpp>
 #include <px4_ros2/control/setpoint_types/direct_actuators.hpp>
 #include <rl_mode.hpp>
 
 /// @brief Default mode name for the direct-actuator arm-position variant.
-static constexpr char kArmPositionDirectActuatorsModeName[] = "RL Arm Position Direct Actuators";
+static constexpr char kArmPositionDirectActuatorsModeName[] = "RL Arm Position";
 /// @brief Default activation behavior while disarmed.
 static constexpr bool kArmPositionActivateEvenWhileDisarmed = true;
 
@@ -31,7 +33,9 @@ static constexpr bool kArmPositionActivateEvenWhileDisarmed = true;
  * @brief Reinforcement-learning multirotor arm-positioning mode with direct motor outputs.
  *
  * This mode builds observations, runs policy inference, and forwards normalized
- * policy actions to PX4 direct actuator channels.
+ * policy actions to PX4 direct actuator channels. Base commands are sourced
+ * from external body-velocity input (`TwistStamped`) with hover-lock fallback
+ * when external commands time out.
  */
 class RlMCArmPositionDirectActuatorsMode : public RLModeBase
 {
@@ -72,6 +76,21 @@ protected:
   ObservationBuffer & getActionObsBuffer();
 
 private:
+  struct CommandReference
+  {
+    Eigen::Vector3f desired_lin_vel_b{Eigen::Vector3f::Zero()};
+    Eigen::Vector3f desired_ang_vel_b{Eigen::Vector3f::Zero()};
+    Eigen::Vector3f desired_pos_w{Eigen::Vector3f::Zero()};
+    Eigen::Quaternionf desired_quat_w{Eigen::Quaternionf::Identity()};
+    bool has_lin_vel_cmd{false};
+    bool has_ang_vel_cmd{false};
+  };
+
+  /// @brief Callback for external body-velocity command input.
+  void cmdVelCallback(const geometry_msgs::msg::TwistStamped::SharedPtr msg);
+  /// @brief Returns whether external velocity command is still valid.
+  bool hasFreshExternalCmd();
+
   /**
    * @brief Returns writable robot data with arm extensions.
    * @return Arm data pointer, or nullptr when type conversion fails.
@@ -87,4 +106,20 @@ private:
   std::shared_ptr<px4_ros2::DirectActuatorsSetpointType> direct_actuators_;
   /// @brief Action history buffer used for time-context observations.
   ObservationBuffer action_obs_buffer_;
+
+  /// @brief External command topic and freshness timeout.
+  std::string cmd_vel_topic_{"/rl_arm_position/cmd_vel"};
+  double cmd_vel_timeout_s_{0.5};
+  /// @brief External velocity command subscription and cache.
+  rclcpp::Subscription<geometry_msgs::msg::TwistStamped>::SharedPtr cmd_vel_sub_;
+  geometry_msgs::msg::TwistStamped last_cmd_vel_msg_{};
+  rclcpp::Time last_cmd_vel_time_{0};
+  bool has_cmd_vel_msg_{false};
+
+  /// @brief Position+yaw hold fallback used when no command source is valid.
+  bool hover_lock_active_{false};
+  Eigen::Vector3f hover_lock_pos_w_{Eigen::Vector3f::Zero()};
+  float hover_lock_yaw_w_{0.0f};
+  /// @brief Cached command reference updated each cycle in updateTargets().
+  CommandReference current_cmd_ref_{};
 };

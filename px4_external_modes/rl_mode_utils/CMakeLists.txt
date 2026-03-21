@@ -27,9 +27,8 @@ find_package(tf2_msgs REQUIRED)
 find_package(cv_bridge REQUIRED)
 find_package(rosbag2_cpp REQUIRED)
 find_package(rosbag2_storage REQUIRED)
-find_package(OpenCV REQUIRED)
 
-include_directories(include SYSTEM ${Eigen3_INCLUDE_DIRS} ${OpenCV_INCLUDE_DIRS})
+include_directories(include SYSTEM ${Eigen3_INCLUDE_DIRS})
 
 add_definitions(-DROOT_DIR="${CMAKE_CURRENT_SOURCE_DIR}/")
 
@@ -75,7 +74,6 @@ target_compile_definitions(rl_mode_utils PRIVATE USE_ORT_ALLOCATED_NAME_API=1)
 target_link_libraries(rl_mode_utils
     Eigen3::Eigen
     onnxruntime-unofficial::onnxruntime
-    ${OpenCV_LIBS}
 )
 
 ament_export_targets(rl_mode_utils HAS_LIBRARY_TARGET)
@@ -85,7 +83,6 @@ ament_export_dependencies(
     eigen3_cmake_module
     Eigen3
     onnxruntime_vendor
-    OpenCV
     geometry_msgs
     nav_msgs
     std_msgs
