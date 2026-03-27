@@ -27,15 +27,16 @@ ArmRobotData::ArmRobotData(px4_ros2::ModeBase & mode_base)
 
   const auto arm_command_topic = node_ref.get_parameter("arm_command_topic").as_string();
   const auto arm_state_topic = node_ref.get_parameter("arm_state_topic").as_string();
+  const auto best_effort_qos = rclcpp::QoS(rclcpp::KeepLast(1)).best_effort();
 
   // Subscribe to arm command and arm state topics.
   arm_command_sub_ = node_ref.create_subscription<sensor_msgs::msg::JointState>(
     arm_command_topic,
-    10,
+    best_effort_qos,
     std::bind(&ArmRobotData::armCommandCallback, this, std::placeholders::_1));
   arm_state_sub_ = node_ref.create_subscription<sensor_msgs::msg::JointState>(
     arm_state_topic,
-    10,
+    best_effort_qos,
     std::bind(&ArmRobotData::armStateCallback, this, std::placeholders::_1));
 }
 

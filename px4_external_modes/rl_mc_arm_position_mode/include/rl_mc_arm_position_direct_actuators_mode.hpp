@@ -14,6 +14,7 @@
 
 #include <Eigen/Core>
 #include <Eigen/Geometry>
+#include <array>
 #include <memory>
 #include <string>
 #include <vector>
@@ -21,6 +22,7 @@
 #include <geometry_msgs/msg/twist_stamped.hpp>
 #include <observation_buffer.hpp>
 #include <px4_ros2/control/setpoint_types/direct_actuators.hpp>
+#include <rosgraph_msgs/msg/clock.hpp>
 #include <rl_mode.hpp>
 
 /// @brief Default mode name for the direct-actuator arm-position variant.
@@ -82,14 +84,22 @@ private:
     Eigen::Vector3f desired_ang_vel_b{Eigen::Vector3f::Zero()};
     Eigen::Vector3f desired_pos_w{Eigen::Vector3f::Zero()};
     Eigen::Quaternionf desired_quat_w{Eigen::Quaternionf::Identity()};
+    std::array<bool, 3> lin_cmd_active{{false, false, false}};
+    std::array<bool, 3> ang_cmd_active{{false, false, false}};
     bool has_lin_vel_cmd{false};
     bool has_ang_vel_cmd{false};
   };
 
   /// @brief Callback for external body-velocity command input.
   void cmdVelCallback(const geometry_msgs::msg::TwistStamped::SharedPtr msg);
+  /// @brief Callback for the simulation clock input.
+  void simClockCallback(const rosgraph_msgs::msg::Clock::SharedPtr msg);
   /// @brief Returns whether external velocity command is still valid.
   bool hasFreshExternalCmd();
+  /// @brief Returns the active time source for mode logic.
+  bool getCurrentModeTime(rclcpp::Time & now);
+  /// @brief Configures node clock behavior according to `use_sim_time`.
+  void configureClockSource(rclcpp::Node & node);
 
   /**
    * @brief Returns writable robot data with arm extensions.
@@ -112,9 +122,16 @@ private:
   double cmd_vel_timeout_s_{0.5};
   /// @brief External velocity command subscription and cache.
   rclcpp::Subscription<geometry_msgs::msg::TwistStamped>::SharedPtr cmd_vel_sub_;
+  rclcpp::Subscription<rosgraph_msgs::msg::Clock>::SharedPtr sim_clock_sub_;
   geometry_msgs::msg::TwistStamped last_cmd_vel_msg_{};
   rclcpp::Time last_cmd_vel_time_{0};
   bool has_cmd_vel_msg_{false};
+  /// @brief Simulation clock configuration and latest sample cache.
+  bool use_sim_time_{false};
+  bool has_sim_time_{false};
+  std::string sim_clock_topic_{"/acesim/clock"};
+  rclcpp::Time latest_sim_time_{0, 0, RCL_ROS_TIME};
+  bool warned_waiting_for_sim_time_{false};
 
   /// @brief Position+yaw hold fallback used when no command source is valid.
   bool hover_lock_active_{false};

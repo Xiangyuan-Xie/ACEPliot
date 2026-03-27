@@ -16,17 +16,14 @@
 #include <functional>
 #include <inference/onnx_ort_backend.hpp>
 #include <math.hpp>
+#include <rcl/time.h>
 #include <std_msgs/msg/float32_multi_array.hpp>
 
 namespace
 {
 constexpr std::size_t kActionDim = 4;
 constexpr std::size_t kCoreObsDim = 21;  // pos_err_b(3) + att_err_b(9) + gravity(3) + lin_vel_err(3) + ang_vel_err(3)
-
-Eigen::Quaternionf yawOnlyQuat(float yaw_w)
-{
-  return Eigen::Quaternionf(Eigen::AngleAxisf(yaw_w, Eigen::Vector3f::UnitZ()));
-}
+constexpr float kCmdZeroEps = 1e-6f;
 }  // namespace
 
 RlMCArmPositionDirectActuatorsMode::RlMCArmPositionDirectActuatorsMode(
@@ -37,7 +34,7 @@ RlMCArmPositionDirectActuatorsMode::RlMCArmPositionDirectActuatorsMode(
   const std::string & root_dir)
 : RLModeBase(
     node,
-    std::make_unique<OnnxOrtBackend>(node),
+    std::make_unique<OnnxOrtBackend>(&node),
     px4_ros2::ModeBase::Settings(mode_name).activateEvenWhileDisarmed(activate_disarmed),
     topic_namespace_prefix,
     root_dir),
@@ -46,6 +43,7 @@ RlMCArmPositionDirectActuatorsMode::RlMCArmPositionDirectActuatorsMode(
   // Configure mode requirements and switch to arm-extended robot data.
   modeRequirements().local_position = true;
   setRobotData(std::make_unique<ArmRobotData>(*this));
+  configureClockSource(node);
 
   // Initialize direct motor output and prefill action history for stable observation shape.
   direct_actuators_ = std::make_shared<px4_ros2::DirectActuatorsSetpointType>(*this);
@@ -76,6 +74,7 @@ void RlMCArmPositionDirectActuatorsMode::onActivate()
   has_cmd_vel_msg_ = false;
   hover_lock_active_ = false;
   current_cmd_ref_ = CommandReference{};
+  warned_waiting_for_sim_time_ = false;
 }
 
 void RlMCArmPositionDirectActuatorsMode::onDeactivate() {}
@@ -98,27 +97,45 @@ void RlMCArmPositionDirectActuatorsMode::getObservation(TensorMap & inputs, floa
   const Eigen::Vector3f base_lin_vel_cmd_b = cmd_ref.desired_lin_vel_b;
   const Eigen::Vector3f base_ang_vel_cmd_b = cmd_ref.desired_ang_vel_b;
 
-  // --- pos_err_b (3): position error in body frame, zeroed when velocity command active ---
-  const bool has_lin_vel_cmd = cmd_ref.has_lin_vel_cmd;
+  // --- pos_err_b (3): position error in body frame with per-axis gating ---
   Eigen::Vector3f pos_err_b = Eigen::Vector3f::Zero();
-  if (!has_lin_vel_cmd) {
-    auto [desired_pos_b, _q_unused] =
-      subtract_frame_transforms(root_pos_w, root_quat_w, cmd_ref.desired_pos_w);
-    if (desired_pos_b.allFinite()) {
-      pos_err_b = desired_pos_b;
-    }
+  auto [desired_pos_b, _q_unused] =
+    subtract_frame_transforms(root_pos_w, root_quat_w, cmd_ref.desired_pos_w);
+  if (desired_pos_b.allFinite()) {
+    pos_err_b = desired_pos_b;
+  }
+  if (cmd_ref.lin_cmd_active[0]) {
+    pos_err_b.x() = 0.0f;
+  }
+  if (cmd_ref.lin_cmd_active[1]) {
+    pos_err_b.y() = 0.0f;
+  }
+  if (cmd_ref.lin_cmd_active[2]) {
+    pos_err_b.z() = 0.0f;
   }
 
-  // --- att_err_b (9): attitude error as flattened rotation matrix, identity when ang_vel active ---
-  const bool has_ang_vel_cmd = cmd_ref.has_ang_vel_cmd;
+  // --- att_err_b (9): per-axis angular gating on roll/pitch/yaw errors ---
   Eigen::Matrix3f rot_matrix = Eigen::Matrix3f::Identity();
-  if (!has_ang_vel_cmd) {
-    auto [_t_unused, att_err_quat] =
-      subtract_frame_transforms(root_pos_w, root_quat_w, root_pos_w, cmd_ref.desired_quat_w);
-    auto [roll_err, pitch_err, yaw_err] = euler_xyz_from_quat(att_err_quat);
-    Eigen::Quaternionf att_err_no_yaw = quat_from_euler_xyz(roll_err, pitch_err, 0.0f);
-    rot_matrix = rotation_matrix_from_quat(att_err_no_yaw);
+  auto [_t_unused, att_err_quat] =
+    subtract_frame_transforms(root_pos_w, root_quat_w, root_pos_w, cmd_ref.desired_quat_w);
+  auto [roll_err, pitch_err, yaw_err] = euler_xyz_from_quat(att_err_quat);
+
+  roll_err = wrapToPi(roll_err);
+  pitch_err = wrapToPi(pitch_err);
+  yaw_err = wrapToPi(yaw_err);
+
+  if (cmd_ref.ang_cmd_active[0]) {
+    roll_err = 0.0f;
   }
+  if (cmd_ref.ang_cmd_active[1]) {
+    pitch_err = 0.0f;
+  }
+  if (cmd_ref.ang_cmd_active[2]) {
+    yaw_err = 0.0f;
+  }
+
+  const Eigen::Quaternionf gated_att_err = quat_from_euler_xyz(roll_err, pitch_err, yaw_err);
+  rot_matrix = rotation_matrix_from_quat(gated_att_err);
 
   const Eigen::Vector3f lin_vel_err_b = base_lin_vel_cmd_b - lin_vel_b;
   const Eigen::Vector3f ang_vel_err_b = base_ang_vel_cmd_b - ang_vel_b;
@@ -190,7 +207,13 @@ void RlMCArmPositionDirectActuatorsMode::applyAction(const TensorMap & action, f
   const auto & out_vec = std::get<std::vector<float>>(it->second);
   getActionObsBuffer().insert(out_vec);
   rnnState().updateFromOutput(action);
-  auto clamped_vec = clamp_vector(out_vec, 0.0f, 1.0f);
+  std::vector<float> mapped_vec;
+  mapped_vec.reserve(out_vec.size());
+  for (const float raw_value : out_vec) {
+    // Match training-side compression while keeping motor command domain [0, 1].
+    const float mapped = 0.5f * (std::tanh(2.0f * raw_value - 1.0f) + 1.0f);
+    mapped_vec.push_back(std::clamp(mapped, 0.0f, 1.0f));
+  }
 
   // Map normalized policy output to motor channels and keep remaining channels at zero.
   using MotorCommands = Eigen::Matrix<
@@ -198,9 +221,9 @@ void RlMCArmPositionDirectActuatorsMode::applyAction(const TensorMap & action, f
     px4_ros2::DirectActuatorsSetpointType::kMaxNumMotors,
     1>;
   MotorCommands motor_commands = MotorCommands::Zero();
-  const size_t max_copy = std::min(clamped_vec.size(), kActionDim);
+  const size_t max_copy = std::min(mapped_vec.size(), kActionDim);
   for (size_t i = 0; i < max_copy; ++i) {
-    motor_commands[static_cast<int>(i)] = clamped_vec[i];
+    motor_commands[static_cast<int>(i)] = mapped_vec[i];
   }
 
   direct_actuators_->updateMotors(motor_commands);
@@ -210,6 +233,7 @@ void RlMCArmPositionDirectActuatorsMode::updateTargets(float dt_s)
 {
   (void)dt_s;
   const auto & root_pos_w = robotData()->RootPosW();
+  const auto & root_quat_w = robotData()->RootQuatW();
   const float root_yaw_w = robotData()->HeadingW();
 
   const bool external_valid = hasFreshExternalCmd();
@@ -221,32 +245,59 @@ void RlMCArmPositionDirectActuatorsMode::updateTargets(float dt_s)
     desired_lin_vel_b.z() = static_cast<float>(last_cmd_vel_msg_.twist.linear.z);
     desired_ang_vel_b.z() = static_cast<float>(last_cmd_vel_msg_.twist.angular.z);
   }
-  const bool has_lin_vel_cmd = desired_lin_vel_b.norm() > 1e-6f;
-  const bool has_ang_vel_cmd = desired_ang_vel_b.norm() > 1e-6f;
-  const bool use_hover_lock = !external_valid || (!has_lin_vel_cmd && !has_ang_vel_cmd);
 
-  if (use_hover_lock) {
-    if (!hover_lock_active_) {
-      hover_lock_active_ = true;
-      hover_lock_pos_w_ = root_pos_w;
-      hover_lock_yaw_w_ = root_yaw_w;
-    }
+  std::array<bool, 3> lin_active{{
+    external_valid && std::abs(desired_lin_vel_b.x()) > kCmdZeroEps,
+    external_valid && std::abs(desired_lin_vel_b.y()) > kCmdZeroEps,
+    external_valid && std::abs(desired_lin_vel_b.z()) > kCmdZeroEps,
+  }};
 
-    current_cmd_ref_.desired_lin_vel_b.setZero();
-    current_cmd_ref_.desired_ang_vel_b.setZero();
-    current_cmd_ref_.desired_pos_w = hover_lock_pos_w_;
-    current_cmd_ref_.desired_quat_w = yawOnlyQuat(hover_lock_yaw_w_);
-    current_cmd_ref_.has_lin_vel_cmd = false;
-    current_cmd_ref_.has_ang_vel_cmd = false;
-  } else {
-    hover_lock_active_ = false;
-    current_cmd_ref_.desired_lin_vel_b = desired_lin_vel_b;
-    current_cmd_ref_.desired_ang_vel_b = desired_ang_vel_b;
-    current_cmd_ref_.desired_pos_w = root_pos_w;
-    current_cmd_ref_.desired_quat_w = yawOnlyQuat(root_yaw_w);
-    current_cmd_ref_.has_lin_vel_cmd = has_lin_vel_cmd;
-    current_cmd_ref_.has_ang_vel_cmd = has_ang_vel_cmd;
+  std::array<bool, 3> ang_active{{
+    false,
+    false,
+    external_valid && std::abs(desired_ang_vel_b.z()) > kCmdZeroEps,
+  }};
+
+  if (!hover_lock_active_) {
+    hover_lock_active_ = true;
+    hover_lock_pos_w_ = root_pos_w;
+    hover_lock_yaw_w_ = root_yaw_w;
   }
+
+  // Maintain per-axis lock reference in position channels.
+  auto [lock_pos_b, _q_unused] = subtract_frame_transforms(
+    root_pos_w, root_quat_w,
+    hover_lock_pos_w_);
+  if (lock_pos_b.allFinite()) {
+    if (lin_active[0]) {
+      lock_pos_b.x() = 0.0f;
+    }
+    if (lin_active[1]) {
+      lock_pos_b.y() = 0.0f;
+    }
+    if (lin_active[2]) {
+      lock_pos_b.z() = 0.0f;
+    }
+    hover_lock_pos_w_ = root_pos_w + (root_quat_w * lock_pos_b);
+  } else {
+    hover_lock_pos_w_ = root_pos_w;
+  }
+
+  // Maintain per-axis lock reference in yaw channel.
+  float yaw_err = wrapToPi(hover_lock_yaw_w_ - root_yaw_w);
+  if (ang_active[2]) {
+    yaw_err = 0.0f;
+  }
+  hover_lock_yaw_w_ = wrapToPi(root_yaw_w + yaw_err);
+
+  current_cmd_ref_.desired_lin_vel_b = desired_lin_vel_b;
+  current_cmd_ref_.desired_ang_vel_b = desired_ang_vel_b;
+  current_cmd_ref_.desired_pos_w = hover_lock_pos_w_;
+  current_cmd_ref_.desired_quat_w = yawOnlyQuat(hover_lock_yaw_w_);
+  current_cmd_ref_.lin_cmd_active = lin_active;
+  current_cmd_ref_.ang_cmd_active = ang_active;
+  current_cmd_ref_.has_lin_vel_cmd = anyAxisActive(lin_active);
+  current_cmd_ref_.has_ang_vel_cmd = anyAxisActive(ang_active);
 }
 
 void RlMCArmPositionDirectActuatorsMode::logTargetValues(float dt_s)
@@ -263,7 +314,11 @@ void RlMCArmPositionDirectActuatorsMode::logTargetValues(float dt_s)
     return;
   }
 
-  const double now_s = node().get_clock()->now().seconds();
+  rclcpp::Time now;
+  if (!getCurrentModeTime(now)) {
+    return;
+  }
+  const double now_s = now.seconds();
 
   // Log base velocity targets (linear + angular) for replay-time behavior analysis.
   std_msgs::msg::Float32MultiArray target_twist_msg;
@@ -324,10 +379,21 @@ void RlMCArmPositionDirectActuatorsMode::cmdVelCallback(
 {
   last_cmd_vel_msg_ = *msg;
 
+  const auto clock_type = use_sim_time_ ? RCL_ROS_TIME : node().get_clock()->get_clock_type();
   if (msg->header.stamp.sec == 0 && msg->header.stamp.nanosec == 0) {
-    last_cmd_vel_time_ = node().get_clock()->now();
+    if (!getCurrentModeTime(last_cmd_vel_time_)) {
+      has_cmd_vel_msg_ = false;
+      if (use_sim_time_ && !warned_waiting_for_sim_time_) {
+        RCLCPP_WARN(
+          node().get_logger(),
+          "Ignoring zero-stamp cmd_vel until the first message arrives on '%s'.",
+          sim_clock_topic_.c_str());
+        warned_waiting_for_sim_time_ = true;
+      }
+      return;
+    }
   } else {
-    last_cmd_vel_time_ = rclcpp::Time(msg->header.stamp, node().get_clock()->get_clock_type());
+    last_cmd_vel_time_ = rclcpp::Time(msg->header.stamp, clock_type);
   }
 
   has_cmd_vel_msg_ = true;
@@ -338,6 +404,79 @@ bool RlMCArmPositionDirectActuatorsMode::hasFreshExternalCmd()
   if (!has_cmd_vel_msg_) {
     return false;
   }
-  const double age_s = (node().get_clock()->now() - last_cmd_vel_time_).seconds();
+  rclcpp::Time now;
+  if (!getCurrentModeTime(now)) {
+    return false;
+  }
+  const double age_s = (now - last_cmd_vel_time_).seconds();
   return age_s <= cmd_vel_timeout_s_;
+}
+
+void RlMCArmPositionDirectActuatorsMode::simClockCallback(
+  const rosgraph_msgs::msg::Clock::SharedPtr msg)
+{
+  latest_sim_time_ = rclcpp::Time(msg->clock, RCL_ROS_TIME);
+  has_sim_time_ = true;
+  warned_waiting_for_sim_time_ = false;
+
+  auto clock = node().get_clock();
+  std::lock_guard<std::mutex> clock_lock(clock->get_clock_mutex());
+  auto * clock_handle = clock->get_clock_handle();
+
+  if (!clock->ros_time_is_active()) {
+    const auto ret = rcl_enable_ros_time_override(clock_handle);
+    if (ret != RCL_RET_OK) {
+      RCLCPP_ERROR(
+        node().get_logger(),
+        "Failed to enable ROS time override from '%s': %s",
+        sim_clock_topic_.c_str(),
+        rcl_get_error_string().str);
+      rcl_reset_error();
+      return;
+    }
+  }
+
+  const auto ret = rcl_set_ros_time_override(clock_handle, latest_sim_time_.nanoseconds());
+  if (ret != RCL_RET_OK) {
+    RCLCPP_ERROR(
+      node().get_logger(),
+      "Failed to update ROS time from '%s': %s",
+      sim_clock_topic_.c_str(),
+      rcl_get_error_string().str);
+    rcl_reset_error();
+  }
+}
+
+bool RlMCArmPositionDirectActuatorsMode::getCurrentModeTime(rclcpp::Time & now)
+{
+  if (!use_sim_time_) {
+    now = node().get_clock()->now();
+    return true;
+  }
+
+  if (!has_sim_time_) {
+    return false;
+  }
+
+  now = latest_sim_time_;
+  return true;
+}
+
+void RlMCArmPositionDirectActuatorsMode::configureClockSource(rclcpp::Node & node)
+{
+  node.get_parameter("use_sim_time", use_sim_time_);
+
+  if (!node.has_parameter("sim_clock_topic")) {
+    node.declare_parameter("sim_clock_topic", sim_clock_topic_);
+  }
+  sim_clock_topic_ = node.get_parameter("sim_clock_topic").as_string();
+
+  if (!use_sim_time_) {
+    return;
+  }
+
+  sim_clock_sub_ = node.create_subscription<rosgraph_msgs::msg::Clock>(
+    sim_clock_topic_,
+    rclcpp::ClockQoS(),
+    std::bind(&RlMCArmPositionDirectActuatorsMode::simClockCallback, this, std::placeholders::_1));
 }

@@ -3,13 +3,17 @@
 #include <sstream>
 #include <stdexcept>
 
-OnnxOrtBackend::OnnxOrtBackend(rclcpp::Node & node)
+OnnxOrtBackend::OnnxOrtBackend(rclcpp::Node * node)
 : node_(node), env_(ORT_LOGGING_LEVEL_WARNING, "rl_onnx"),
   mem_info_(Ort::MemoryInfo::CreateCpu(OrtArenaAllocator, OrtMemTypeDefault))
 {
+  if (!node_) {
+    throw std::invalid_argument("OnnxOrtBackend requires a valid ROS 2 node.");
+  }
+
   // Read model path and initialize ORT session options.
-  node_.declare_parameter("model_path", "policy.onnx");
-  model_path_ = node_.get_parameter("model_path").as_string();
+  node_->declare_parameter("model_path", "policy.onnx");
+  model_path_ = node_->get_parameter("model_path").as_string();
 
   Ort::SessionOptions opt;
   // Optional: Enable TensorRT / CUDA Execution Providers if needed
@@ -58,7 +62,7 @@ OnnxOrtBackend::OnnxOrtBackend(rclcpp::Node & node)
   }
 
   RCLCPP_INFO(
-    node_.get_logger(), "[OnnxOrtBackend] loaded '%s' with %zu inputs and %zu outputs.",
+    node_->get_logger(), "[OnnxOrtBackend] loaded '%s' with %zu inputs and %zu outputs.",
     model_path_.c_str(), num_inputs_, num_outputs_);
 }
 
@@ -75,7 +79,7 @@ TensorMap OnnxOrtBackend::forward(const TensorMap & inputs, float /*dt_s*/)
     }
     if (inputs.size() > 1) {
       RCLCPP_WARN_ONCE(
-        node_.get_logger(),
+        node_->get_logger(),
         "Single input model received %zu inputs. Using the first one.", inputs.size());
     }
     const auto & generic_tensor = inputs.begin()->second;
@@ -156,7 +160,8 @@ Ort::Value OnnxOrtBackend::create_ort_value(const GenericTensor & tensor, const 
           throw std::runtime_error("Input cv::Mat '" + name + "' is not continuous.");
         }
         return Ort::Value::CreateTensor<float>(
-          mem_info_, (float *)data.data, data.total() * data.channels(), shape.data(),
+          mem_info_, reinterpret_cast<float *>(data.data), data.total() * data.channels(),
+          shape.data(),
           shape.size());
       }
     },

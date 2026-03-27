@@ -1,16 +1,12 @@
-#include <rclcpp/rclcpp.hpp>
-#include <px4_ros2/navigation/experimental/local_position_measurement_interface.hpp>
-#include <px4_ros2/utils/frame_conversion.hpp>
-#include <nav_msgs/msg/odometry.hpp>
+#include <vector>
+#include <tf2/LinearMath/Matrix3x3.h>
+#include <tf2/LinearMath/Quaternion.h>
 #include <geometry_msgs/msg/pose_stamped.hpp>
 #include <geometry_msgs/msg/pose_with_covariance_stamped.hpp>
-#include <tf2/LinearMath/Quaternion.h>
-#include <tf2/LinearMath/Matrix3x3.h>
-#include <vector>
-
-using namespace std::chrono_literals; // NOLINT
-
-static const std::string topic_namespace_prefix = "";
+#include <nav_msgs/msg/odometry.hpp>
+#include <px4_ros2/navigation/experimental/local_position_measurement_interface.hpp>
+#include <px4_ros2/utils/frame_conversion.hpp>
+#include <rclcpp/rclcpp.hpp>
 
 /**
  * @class LocalNavigation
@@ -26,15 +22,11 @@ public:
    * @brief Constructor initializing the navigation interface and default extrinsics.
    * @param node Reference to the ROS node.
    */
-  explicit LocalNavigation(rclcpp::Node & node)
-  : LocalPositionMeasurementInterface(node, px4_ros2::PoseFrame::LocalNED,
-      px4_ros2::VelocityFrame::LocalNED)
-    // px4_ros2::VelocityFrame::LocalNED, topic_namespace_prefix)
-  {
-    // Initialize extrinsic parameters to identity
-    extrinsic_translation_ = Eigen::Vector3d::Zero();
-    extrinsic_rotation_ = Eigen::Quaterniond::Identity();
-  }
+  explicit LocalNavigation(rclcpp::Node * node)
+  : LocalPositionMeasurementInterface(*node, px4_ros2::PoseFrame::LocalNED,
+      px4_ros2::VelocityFrame::LocalNED),
+    extrinsic_translation_(Eigen::Vector3d::Zero()),
+    extrinsic_rotation_(Eigen::Quaterniond::Identity()) {}
 
   /**
    * @brief Process nav_msgs::msg::Odometry messages and update local position.
@@ -59,7 +51,8 @@ public:
     // PX4 expects NED frame, convert ENU to NED
     local_position_measurement.position_xy = Eigen::Vector2f(
       transformed_position.y(), transformed_position.x());
-    local_position_measurement.position_xy_variance = Eigen::Vector2f(0.000000001f, 0.000000001f);
+    local_position_measurement.position_xy_variance = Eigen::Vector2f(
+      0.000000001f, 0.000000001f);
     // local_position_measurement.position_xy_variance = Eigen::Vector2f {msg->pose.covariance[7], msg->pose.covariance[0]};
 
     local_position_measurement.position_z = -transformed_position.z();
@@ -76,7 +69,8 @@ public:
 
       local_position_measurement.velocity_xy = Eigen::Vector2f(
         transformed_velocity.x(), -transformed_velocity.y());
-      local_position_measurement.velocity_xy_variance = Eigen::Vector2f(0.000000001f, 0.000000001f);
+      local_position_measurement.velocity_xy_variance = Eigen::Vector2f(
+        0.000000001f, 0.000000001f);
       // local_position_measurement.velocity_xy_variance = Eigen::Vector2f {msg->twist.covariance[7], msg->twist.covariance[0]};
 
       local_position_measurement.velocity_z = -transformed_velocity.z();
@@ -85,15 +79,15 @@ public:
     }
 
     // Orientation transformation and conversion
-    Eigen::Quaternionf q_px4 = px4_ros2::attitudeEnuToNed(
+    const Eigen::Quaternionf q_px4 = px4_ros2::attitudeEnuToNed(
       Eigen::Quaternionf(
         transformed_orientation.w(),
         transformed_orientation.x(),
         transformed_orientation.y(),
-        transformed_orientation.z())
-    );
+        transformed_orientation.z()));
     local_position_measurement.attitude_quaternion = q_px4;
-    local_position_measurement.attitude_variance = Eigen::Vector3f(0.0001, 0.0001, 0.0001);
+    local_position_measurement.attitude_variance = Eigen::Vector3f(
+      0.0001, 0.0001, 0.0001);
     // local_position_measurement.attitude_variance = Eigen::Vector3f {msg->pose.covariance[21], msg->pose.covariance[28], msg->pose.covariance[35]};
 
     try {
@@ -134,13 +128,12 @@ public:
     local_position_measurement.position_z = -transformed_position.z();
     local_position_measurement.position_z_variance = 0.000000001f;
 
-    Eigen::Quaternionf q_px4 = px4_ros2::attitudeEnuToNed(
+    const Eigen::Quaternionf q_px4 = px4_ros2::attitudeEnuToNed(
       Eigen::Quaternionf(
         transformed_orientation.w(),
         transformed_orientation.x(),
         transformed_orientation.y(),
-        transformed_orientation.z())
-    );
+        transformed_orientation.z()));
     local_position_measurement.attitude_quaternion = q_px4;
     local_position_measurement.attitude_variance = Eigen::Vector3f(0.0001, 0.0001, 0.0001);
 
@@ -160,7 +153,8 @@ public:
    * @brief Process geometry_msgs::msg::PoseWithCovarianceStamped messages and update local position.
    * @param msg The received pose with covariance message.
    */
-  void updateLocalPosition(const geometry_msgs::msg::PoseWithCovarianceStamped::SharedPtr msg)
+  void updateLocalPosition(
+    const geometry_msgs::msg::PoseWithCovarianceStamped::SharedPtr msg)
   {
     px4_ros2::LocalPositionMeasurement local_position_measurement {};
 
@@ -184,13 +178,12 @@ public:
     local_position_measurement.position_z = -transformed_position.z();
     local_position_measurement.position_z_variance = msg->pose.covariance[14];
 
-    Eigen::Quaternionf q_px4 = px4_ros2::attitudeEnuToNed(
+    const Eigen::Quaternionf q_px4 = px4_ros2::attitudeEnuToNed(
       Eigen::Quaternionf(
         transformed_orientation.w(),
         transformed_orientation.x(),
         transformed_orientation.y(),
-        transformed_orientation.z())
-    );
+        transformed_orientation.z()));
     local_position_measurement.attitude_quaternion = q_px4;
     local_position_measurement.attitude_variance = Eigen::Vector3f(
       msg->pose.covariance[21],
@@ -241,7 +234,6 @@ public:
 private:
   Eigen::Vector3d extrinsic_translation_;
   Eigen::Quaterniond extrinsic_rotation_;
-
 };
 
 /**
@@ -257,7 +249,7 @@ public:
   GenericOdometryNode()
   : Node("generic_odometry_node")
   {
-    _interface = std::make_unique<LocalNavigation>(*this);
+    _interface = std::make_unique<LocalNavigation>(this);
 
     // Declare parameters
     this->declare_parameter("message_type", "odometry");
@@ -268,8 +260,7 @@ public:
       "extrinsic_rotation_matrix", std::vector<double>{
       1.0, 0.0, 0.0,
       0.0, 1.0, 0.0,
-      0.0, 0.0, 1.0
-    });
+      0.0, 0.0, 1.0});
 
     // Read and set extrinsics
     auto translation = this->get_parameter("extrinsic_translation").as_double_array();
@@ -287,7 +278,7 @@ public:
       .durability_volatile());
 
     // Subscribe to appropriate topic based on message type
-    std::string message_type = this->get_parameter("message_type").as_string();
+    const std::string message_type = this->get_parameter("message_type").as_string();
 
     if (message_type == "odometry") {
       odometry_sub_ = this->create_subscription<nav_msgs::msg::Odometry>(

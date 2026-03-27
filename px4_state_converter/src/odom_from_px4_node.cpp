@@ -1,14 +1,14 @@
-#include <rclcpp/rclcpp.hpp>
-#include <px4_msgs/msg/vehicle_odometry.hpp>
-#include <px4_ros2/utils/frame_conversion.hpp>
-#include "px4_ros2/utils/message_version.hpp"
-#include <nav_msgs/msg/odometry.hpp>
-#include <tf2_ros/transform_broadcaster.h>
-#include <geometry_msgs/msg/transform_stamped.hpp>
-#include <Eigen/Geometry>
 #include <functional>
 #include <memory>
+#include <Eigen/Geometry>
+#include <geometry_msgs/msg/transform_stamped.hpp>
+#include <nav_msgs/msg/odometry.hpp>
+#include <px4_msgs/msg/vehicle_odometry.hpp>
+#include <px4_ros2/utils/frame_conversion.hpp>
+#include <rclcpp/rclcpp.hpp>
+#include <tf2_ros/transform_broadcaster.h>
 #include "common.hpp"
+#include "px4_ros2/utils/message_version.hpp"
 
 class OdometryFromPX4 : public rclcpp::Node
 {
@@ -49,7 +49,7 @@ public:
     this->declare_parameter<std::vector<double>>("sensor_translation", {0.0, 0.0, 0.0});
     this->declare_parameter<std::vector<double>>(
       "sensor_rotation_matrix", {1.0, 0.0, 0.0, 0.0, 1.0,
-        0.0, 0.0, 0.0, 1.0});                                                                                              // 3x3 rotation matrix [r11, r12, r13, r21, r22, r23, r31, r32, r33]
+        0.0, 0.0, 0.0, 1.0});  // 3x3 rotation matrix [r11, ..., r33]
 
     // Get sensor extrinsic parameters
     auto trans_vec = this->get_parameter("sensor_translation").as_double_array();
@@ -95,22 +95,23 @@ private:
 
     // 1. Get drone body pose in ENU coordinate system
     // Position: PX4 odometry position is "NED" so needs to be converted to "ENU"
-    Eigen::Vector3d body_position_enu;
-    body_position_enu << msg->position[1], msg->position[0], -msg->position[2];
+    const Eigen::Vector3d body_position_enu(
+      msg->position[1], msg->position[0], -msg->position[2]);
 
     // Attitude: PX4 odometry attitude is "body FRD->NED" so needs to be converted to "body FLU->ENU"
-    Eigen::Quaterniond body_orientation_enu =
-      px4_ros2::attitudeNedToEnu(Eigen::Quaterniond(msg->q[0], msg->q[1], msg->q[2], msg->q[3]));
+    const Eigen::Quaterniond body_orientation_enu = px4_ros2::attitudeNedToEnu(
+      Eigen::Quaterniond(msg->q[0], msg->q[1], msg->q[2], msg->q[3]));
 
     // 2. Calculate sensor pose in ENU coordinate system
     // sensor position = body position + body attitude rotated sensor translation
-    Eigen::Vector3d sensor_position_enu = body_position_enu + body_orientation_enu *
+    const Eigen::Vector3d sensor_position_enu = body_position_enu + body_orientation_enu *
       sensor_translation_;
 
     // sensor attitude = body attitude * sensor relative attitude (using rotation matrix)
-    Eigen::Matrix3d body_rotation_matrix = body_orientation_enu.toRotationMatrix();
-    Eigen::Matrix3d sensor_rotation_matrix_enu = body_rotation_matrix * sensor_rotation_matrix_;
-    Eigen::Quaterniond sensor_orientation_enu(sensor_rotation_matrix_enu);
+    const Eigen::Matrix3d body_rotation_matrix = body_orientation_enu.toRotationMatrix();
+    const Eigen::Matrix3d sensor_rotation_matrix_enu =
+      body_rotation_matrix * sensor_rotation_matrix_;
+    const Eigen::Quaterniond sensor_orientation_enu(sensor_rotation_matrix_enu);
 
     // Set sensor pose
     odom_msg.pose.pose.position.x = sensor_position_enu.x();
@@ -124,16 +125,15 @@ private:
 
     // 3. Calculate sensor velocity (considering rotation-induced velocity)
     // Body linear velocity: PX4 odometry linear velocity is "NED" so needs to be converted to "ENU"
-    Eigen::Vector3d body_linear_vel_enu;
-    body_linear_vel_enu << msg->velocity[1], msg->velocity[0], -msg->velocity[2];
+    const Eigen::Vector3d body_linear_vel_enu(
+      msg->velocity[1], msg->velocity[0], -msg->velocity[2]);
 
     // Body angular velocity: PX4 odometry angular velocity is "body FRD" so needs to be converted to "body FLU"
-    Eigen::Vector3d body_angular_vel_flu;
-    body_angular_vel_flu << msg->angular_velocity[0], -msg->angular_velocity[1],
-      -msg->angular_velocity[2];
+    const Eigen::Vector3d body_angular_vel_flu(
+      msg->angular_velocity[0], -msg->angular_velocity[1], -msg->angular_velocity[2]);
 
     // sensor linear velocity = body linear velocity + body angular velocity × sensor translation offset
-    Eigen::Vector3d sensor_linear_vel_enu = body_linear_vel_enu + body_angular_vel_flu.cross(
+    const Eigen::Vector3d sensor_linear_vel_enu = body_linear_vel_enu + body_angular_vel_flu.cross(
       body_orientation_enu * sensor_translation_);
 
     // sensor angular velocity = body angular velocity (assuming sensor frame aligns with body frame, or rotation in extrinsic doesn't produce additional angular velocity)
@@ -153,9 +153,9 @@ private:
     odom_msg.pose.covariance[7] = msg->position_variance[0];
     odom_msg.pose.covariance[14] = msg->position_variance[2];
     // Attitude covariance
-    odom_msg.pose.covariance[21] = msg->orientation_variance[0]; // roll
-    odom_msg.pose.covariance[28] = msg->orientation_variance[1]; // pitch
-    odom_msg.pose.covariance[35] = msg->orientation_variance[2]; // yaw
+    odom_msg.pose.covariance[21] = msg->orientation_variance[0];  // roll
+    odom_msg.pose.covariance[28] = msg->orientation_variance[1];  // pitch
+    odom_msg.pose.covariance[35] = msg->orientation_variance[2];  // yaw
 
     // Velocity covariance
     odom_msg.twist.covariance[0] = msg->velocity_variance[1];
@@ -203,11 +203,10 @@ private:
   std::unique_ptr<tf2_ros::TransformBroadcaster> tf_broadcaster_;
 
   // Sensor extrinsic parameters
-  Eigen::Vector3d sensor_translation_;     // Sensor translation relative to body
-  Eigen::Matrix3d sensor_rotation_matrix_; // Sensor rotation matrix relative to body
-  std::string sensor_name_;                // Sensor name for logging
+  Eigen::Vector3d sensor_translation_;      // Sensor translation relative to body
+  Eigen::Matrix3d sensor_rotation_matrix_;  // Sensor rotation matrix relative to body
+  std::string sensor_name_;                 // Sensor name for logging
 };
-
 
 int main(int argc, char * argv[])
 {

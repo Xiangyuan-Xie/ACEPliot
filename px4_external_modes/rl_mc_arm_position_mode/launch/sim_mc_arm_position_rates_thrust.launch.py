@@ -13,7 +13,9 @@ def generate_launch_description() -> LaunchDescription:
     model_path_arg = DeclareLaunchArgument(
         'model_path', default_value=model_path, description='ONNX Model Path')
     use_sim_time_arg = DeclareLaunchArgument(
-        'use_sim_time', default_value='false', description='Use simulation time')
+        'use_sim_time', default_value='true', description='Use simulation time')
+    sim_clock_topic_arg = DeclareLaunchArgument(
+        'sim_clock_topic', default_value='/acesim/clock', description='Simulation clock topic')
     use_ros2_odom_arg = DeclareLaunchArgument(
         'use_ros2_odom', default_value='false', description='Use external ROS2 odometry')
     cmd_vel_topic_arg = DeclareLaunchArgument(
@@ -27,15 +29,17 @@ def generate_launch_description() -> LaunchDescription:
         parameters=[{
             'model_path': LaunchConfiguration('model_path'),
             'use_sim_time': LaunchConfiguration('use_sim_time'),
+            'sim_clock_topic': LaunchConfiguration('sim_clock_topic'),
             'use_ros2_odom': LaunchConfiguration('use_ros2_odom'),
             'cmd_vel_topic': LaunchConfiguration('cmd_vel_topic'),
             'cmd_vel_timeout_s': LaunchConfiguration('cmd_vel_timeout_s'),
-        }]
+        }],
     )
 
     return LaunchDescription([
         model_path_arg,
         use_sim_time_arg,
+        sim_clock_topic_arg,
         use_ros2_odom_arg,
         cmd_vel_topic_arg,
         cmd_vel_timeout_s_arg,

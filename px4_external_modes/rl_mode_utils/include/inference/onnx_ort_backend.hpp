@@ -1,8 +1,13 @@
 #pragma once
 
-#include <inference/infer_backend.hpp>
 #include <onnxruntime_cxx_api.h>
+#include <memory>
 #include <opencv2/opencv.hpp>
+#include <string>
+#include <unordered_map>
+#include <utility>
+#include <vector>
+#include <inference/infer_backend.hpp>
 
 /**
  * @class OnnxOrtBackend
@@ -16,7 +21,7 @@ public:
    * @brief Constructor for OnnxOrtBackend.
    * @param node The ROS 2 node, used for getting parameters (e.g., model path).
    */
-  explicit OnnxOrtBackend(rclcpp::Node & node);
+  explicit OnnxOrtBackend(rclcpp::Node * node);
 
   /// @brief Default destructor.
   ~OnnxOrtBackend() override = default;
@@ -63,7 +68,7 @@ private:
   ///@}
 
   // --- Member Variables ---
-  rclcpp::Node & node_;                           ///< Reference to the ROS 2 node.
+  rclcpp::Node * node_{nullptr};                 ///< ROS 2 node used for parameters and logging.
   std::string model_path_;                        ///< Path to the .onnx model file.
 
   // ONNX Runtime members
@@ -73,7 +78,9 @@ private:
 
   // Model properties
   size_t num_inputs_{0}, num_outputs_{0};         ///< Number of model inputs and outputs.
-  std::vector<std::string> input_names_, output_names_;   ///< Names of model inputs/outputs.
-  std::vector<const char *> input_names_cstr_, output_names_cstr_;  ///< C-string versions of names for the ORT API.
-  std::unordered_map<std::string, std::vector<int64_t>> input_shapes_;   ///< Expected shapes for each model input.
+  std::vector<std::string> input_names_, output_names_;  ///< Names of model inputs/outputs.
+  std::vector<const char *> input_names_cstr_,
+    output_names_cstr_;  ///< C-string versions of names for the ORT API.
+  std::unordered_map<std::string,
+    std::vector<int64_t>> input_shapes_;  ///< Expected shapes for each model input.
 };

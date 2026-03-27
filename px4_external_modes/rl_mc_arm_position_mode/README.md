@@ -17,7 +17,8 @@
 
 通用参数：
 - `model_path`：ONNX 模型路径
-- `use_sim_time`：是否使用仿真时钟
+- `use_sim_time`：是否使用仿真时钟；为 `true` 时节点将订阅 `sim_clock_topic`
+- `sim_clock_topic`：仿真时钟话题，默认 `/acesim/clock`
 - `use_ros2_odom`：是否使用外部 ROS2 里程计
 - `cmd_vel_topic`：外部速度命令话题（`geometry_msgs/TwistStamped`，默认 `/rl_arm_position/cmd_vel`）
 - `cmd_vel_timeout_s`：外部速度命令超时秒数（默认 `0.5`）
@@ -53,6 +54,14 @@ ros2 launch rl_mc_arm_position_mode sim_mc_arm_position_direct_actuators.launch.
 ```bash
 ros2 launch rl_mc_arm_position_mode sim_mc_arm_position_rates_thrust.launch.py
 ```
+
+这两个仿真 launch 会默认传入：
+
+```bash
+use_sim_time:=true sim_clock_topic:=/acesim/clock
+```
+
+节点不再依赖把 `/clock` 重映射到 `/acesim/clock`。
 
 外部速度命令示例（机体系，`x前/y左/z上`，`angular.z` 为偏航角速度）：
 

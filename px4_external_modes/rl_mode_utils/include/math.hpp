@@ -7,6 +7,7 @@
 #include <utility>
 #include <vector>
 #include <algorithm>
+#include <array>
 #include <cmath>
 
 /**
@@ -62,6 +63,13 @@ std::tuple<float, float, float> euler_xyz_from_quat(const Eigen::Quaternionf & q
  * @return Resulting quaternion.
  */
 Eigen::Quaternionf quat_from_euler_xyz(float roll, float pitch, float yaw);
+/**
+ * @brief Constructs a pure-yaw quaternion (roll=pitch=0).
+ * @param yaw Rotation about Z axis in radians.
+ * @return Resulting quaternion.
+ */
+Eigen::Quaternionf yawOnlyQuat(float yaw);
+
 
 /**
  * @brief Converts a quaternion to a 3×3 rotation matrix.
@@ -69,3 +77,22 @@ Eigen::Quaternionf quat_from_euler_xyz(float roll, float pitch, float yaw);
  * @return Corresponding rotation matrix.
  */
 Eigen::Matrix3f rotation_matrix_from_quat(const Eigen::Quaternionf & q);
+
+/**
+ * @brief Wraps an angle in radians to [-pi, pi).
+ * @param angle Input angle in radians.
+ * @return Wrapped angle in radians.
+ */
+float wrapToPi(float angle);
+
+/**
+ * @brief Returns true when any axis command is active.
+ * @tparam N Number of axes.
+ * @param active Per-axis activation flags.
+ * @return True if at least one element is true.
+ */
+template<std::size_t N>
+bool anyAxisActive(const std::array<bool, N> & active)
+{
+  return std::any_of(active.begin(), active.end(), [](bool value) {return value;});
+}

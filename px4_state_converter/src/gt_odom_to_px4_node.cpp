@@ -1,68 +1,64 @@
-/**
-* @file ground_truth_odometry.cpp
-* @brief A ROS2 node that synchronizes PX4 ground truth local position and attitude, and publishes fused pose to PX4 navigation interface.
-*/
-
-#include <rclcpp/rclcpp.hpp>
-#include <px4_ros2/navigation/experimental/local_position_measurement_interface.hpp>
 #include <geometry_msgs/msg/pose_stamped.hpp>
-#include <px4_msgs/msg/vehicle_local_position.hpp>
-#include <px4_msgs/msg/vehicle_attitude.hpp>
-#include "px4_ros2/utils/message_version.hpp"
 #include <message_filters/subscriber.h>
 #include <message_filters/time_synchronizer.h>
-
-using namespace std::chrono_literals;
-
-static const std::string topic_namespace_prefix = "";
+#include <px4_msgs/msg/vehicle_attitude.hpp>
+#include <px4_msgs/msg/vehicle_local_position.hpp>
+#include <px4_ros2/navigation/experimental/local_position_measurement_interface.hpp>
+#include <rclcpp/rclcpp.hpp>
+#include "px4_ros2/utils/message_version.hpp"
 
 /**
-* @class LocalNavigation
-* @brief Wraps PX4 local position measurement interface for ground truth pose injection.
-*/
+ * @file ground_truth_odometry.cpp
+ * @brief Synchronize PX4 ground-truth pose topics and feed them into PX4 navigation.
+ */
+
+static const char kTopicNamespacePrefix[] = "";
+
+/**
+ * @class LocalNavigation
+ * @brief Wraps PX4 local-position measurement injection for ground-truth pose data.
+ */
 class LocalNavigation : public px4_ros2::LocalPositionMeasurementInterface
 {
 public:
   /**
-  * @brief Constructor
-  * @param node The ROS2 node handle
-  */
-  explicit LocalNavigation(rclcpp::Node & node)
-  : LocalPositionMeasurementInterface(node, px4_ros2::PoseFrame::LocalNED,
+   * @brief Constructor.
+   * @param node ROS 2 node used by the PX4 navigation interface.
+   */
+  explicit LocalNavigation(rclcpp::Node * node)
+  : LocalPositionMeasurementInterface(*node, px4_ros2::PoseFrame::LocalNED,
       px4_ros2::VelocityFrame::LocalNED) {}
 
-  //  px4_ros2::VelocityFrame::LocalNED, topic_namespace_prefix) {}
-
   /**
-  * @brief Sends a PoseStamped message to PX4 local position interface.
-  * @param msg PoseStamped input message
-  */
+   * @brief Sends a `PoseStamped` message to the PX4 local-position interface.
+   * @param msg Pose input message.
+   */
   void updateLocalPosition(const geometry_msgs::msg::PoseStamped::SharedPtr msg)
   {
     px4_ros2::LocalPositionMeasurement local_position_measurement {};
     local_position_measurement.timestamp_sample = msg->header.stamp;
 
-    local_position_measurement.position_xy = Eigen::Vector2f {
+    local_position_measurement.position_xy = Eigen::Vector2f{
       msg->pose.position.x, msg->pose.position.y
     };
-    local_position_measurement.position_xy_variance = Eigen::Vector2f {1e-9f, 1e-9f};
+    local_position_measurement.position_xy_variance = Eigen::Vector2f{1e-9f, 1e-9f};
 
     local_position_measurement.position_z = msg->pose.position.z;
     local_position_measurement.position_z_variance = 1e-9f;
 
-    local_position_measurement.velocity_xy = Eigen::Vector2f {0.0f, 0.0f};
-    local_position_measurement.velocity_xy_variance = Eigen::Vector2f {1e-9f, 1e-9f};
+    local_position_measurement.velocity_xy = Eigen::Vector2f{0.0f, 0.0f};
+    local_position_measurement.velocity_xy_variance = Eigen::Vector2f{1e-9f, 1e-9f};
 
     local_position_measurement.velocity_z = 0.0f;
     local_position_measurement.velocity_z_variance = 1e-9f;
 
-    local_position_measurement.attitude_quaternion = Eigen::Quaternionf {
+    local_position_measurement.attitude_quaternion = Eigen::Quaternionf{
       static_cast<float>(msg->pose.orientation.w),
       static_cast<float>(msg->pose.orientation.x),
       static_cast<float>(msg->pose.orientation.y),
       static_cast<float>(msg->pose.orientation.z)
     };
-    local_position_measurement.attitude_variance = Eigen::Vector3f {0.001f, 0.001f, 0.001f};
+    local_position_measurement.attitude_variance = Eigen::Vector3f{0.001f, 0.001f, 0.001f};
 
     try {
       update(local_position_measurement);
@@ -78,19 +74,19 @@ public:
 };
 
 /**
-* @class GroundTruthOdometry
-* @brief ROS2 node that fuses PX4 local position and attitude ground truth into PoseStamped and updates PX4 navigation.
-*/
+ * @class GroundTruthOdometry
+ * @brief Fuses PX4 ground-truth local position and attitude into a pose update.
+ */
 class GroundTruthOdometry : public rclcpp::Node
 {
 public:
   /**
-  * @brief Constructor. Sets up subscriptions and synchronization.
-  */
+   * @brief Constructor. Sets up subscriptions and synchronization.
+   */
   GroundTruthOdometry()
   : Node("ground_truth_odometry_node")
   {
-    _interface = std::make_unique<LocalNavigation>(*this);
+    _interface = std::make_unique<LocalNavigation>(this);
 
     if (!_interface->doRegister()) {
       throw std::runtime_error("Registration failed");
@@ -101,13 +97,13 @@ public:
 
     sub1_ = std::make_shared<message_filters::Subscriber<px4_msgs::msg::VehicleLocalPosition>>(
       this,
-      topic_namespace_prefix + "/fmu/out/vehicle_local_position_groundtruth" +
+      std::string(kTopicNamespacePrefix) + "/fmu/out/vehicle_local_position_groundtruth" +
       px4_ros2::getMessageNameVersion<px4_msgs::msg::VehicleLocalPosition>(),
       qos.get_rmw_qos_profile());
 
     sub2_ = std::make_shared<message_filters::Subscriber<px4_msgs::msg::VehicleAttitude>>(
       this,
-      topic_namespace_prefix + "/fmu/out/vehicle_attitude_groundtruth" +
+      std::string(kTopicNamespacePrefix) + "/fmu/out/vehicle_attitude_groundtruth" +
       px4_ros2::getMessageNameVersion<px4_msgs::msg::VehicleAttitude>(),
       qos.get_rmw_qos_profile());
 
@@ -121,10 +117,10 @@ public:
   }
 
   /**
-  * @brief Callback function when both local position and attitude messages are synchronized.
-  * @param local_pos The vehicle local position message
-  * @param att The vehicle attitude message
-  */
+   * @brief Handle synchronized local-position and attitude ground-truth messages.
+   * @param local_pos Vehicle local-position message.
+   * @param att Vehicle attitude message.
+   */
   void callback(
     const px4_msgs::msg::VehicleLocalPosition::ConstSharedPtr & local_pos,
     const px4_msgs::msg::VehicleAttitude::ConstSharedPtr & att)
@@ -146,30 +142,33 @@ public:
   }
 
   /**
-  * @brief Converts PX4 timestamp (in microseconds) to ROS2 header timestamp.
-  * @param timestamp PX4 timestamp in microseconds
-  * @return ROS2 standard message header with converted time
-  */
+   * @brief Converts PX4 timestamp in microseconds to a ROS 2 header.
+   * @param timestamp PX4 timestamp in microseconds.
+   * @return ROS 2 header with converted time.
+   */
   std_msgs::msg::Header timestamp_to_header(uint64_t timestamp)
   {
     std_msgs::msg::Header header;
-    header.stamp.sec = static_cast<int32_t>(timestamp / 1'000'000);  // seconds
-    header.stamp.nanosec = static_cast<uint32_t>((timestamp % 1'000'000) * 1000);  // remaining microseconds to ns
+    header.stamp.sec = static_cast<int32_t>(timestamp / 1'000'000);
+    header.stamp.nanosec = static_cast<uint32_t>((timestamp % 1'000'000) * 1000);
     return header;
   }
 
 private:
-  std::unique_ptr<LocalNavigation> _interface;  /**< PX4 navigation interface */
+  std::unique_ptr<LocalNavigation> _interface;  ///< PX4 navigation interface.
 
-  std::shared_ptr<message_filters::Subscriber<px4_msgs::msg::VehicleLocalPosition>> sub1_; /**< Ground truth local position subscriber */
-  std::shared_ptr<message_filters::Subscriber<px4_msgs::msg::VehicleAttitude>> sub2_;      /**< Ground truth attitude subscriber */
+  std::shared_ptr<message_filters::Subscriber<px4_msgs::msg::VehicleLocalPosition>>
+  sub1_;    ///< Ground-truth local-position subscriber.
+  std::shared_ptr<message_filters::Subscriber<px4_msgs::msg::VehicleAttitude>>
+  sub2_;    ///< Ground-truth attitude subscriber.
   std::shared_ptr<message_filters::TimeSynchronizer<
-      px4_msgs::msg::VehicleLocalPosition, px4_msgs::msg::VehicleAttitude>> sync_msg_;   /**< Time synchronizer */
+      px4_msgs::msg::VehicleLocalPosition, px4_msgs::msg::VehicleAttitude>>
+  sync_msg_;    ///< Time synchronizer.
 };
 
 /**
-* @brief Main entry point for the ground truth odometry node.
-*/
+ * @brief Main entry point for the ground-truth odometry node.
+ */
 int main(int argc, char * argv[])
 {
   rclcpp::init(argc, argv);

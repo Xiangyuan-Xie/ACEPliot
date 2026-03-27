@@ -106,8 +106,7 @@ private:
     odom_msg.child_frame_id = this->get_parameter("sensor_frame").as_string();
 
     // Convert NED to ENU coordinates
-    Eigen::Vector3d body_position_enu;
-    body_position_enu << local_pos->y, local_pos->x, -local_pos->z;
+    const Eigen::Vector3d body_position_enu(local_pos->y, local_pos->x, -local_pos->z);
 
     Eigen::Quaterniond body_orientation_enu = px4_ros2::attitudeNedToEnu(
       Eigen::Quaterniond(att->q[0], att->q[1], att->q[2], att->q[3]));
@@ -133,18 +132,19 @@ private:
     // Calculate velocity (using local position velocity if available, otherwise set to zero)
     Eigen::Vector3d body_linear_vel_enu;
     if (local_pos->v_xy_valid && local_pos->v_z_valid) {
-      body_linear_vel_enu << local_pos->vy, local_pos->vx, -local_pos->vz;
+      body_linear_vel_enu =
+        Eigen::Vector3d(local_pos->vy, local_pos->vx, -local_pos->vz);
     } else {
-      body_linear_vel_enu << 0.0, 0.0, 0.0;
+      body_linear_vel_enu = Eigen::Vector3d::Zero();
     }
 
     // Angular velocity from attitude (if available)
     Eigen::Vector3d body_angular_vel_flu;
     if (att->timestamp != 0) {
       // For ground truth, we might not have angular velocity, so set to zero
-      body_angular_vel_flu << 0.0, 0.0, 0.0;
+      body_angular_vel_flu = Eigen::Vector3d::Zero();
     } else {
-      body_angular_vel_flu << 0.0, 0.0, 0.0;
+      body_angular_vel_flu = Eigen::Vector3d::Zero();
     }
 
     Eigen::Vector3d sensor_linear_vel_enu = body_linear_vel_enu + body_angular_vel_flu.cross(

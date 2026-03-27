@@ -44,7 +44,23 @@ Eigen::Quaternionf quat_from_euler_xyz(float roll, float pitch, float yaw)
   return (qz * qy * qx).normalized();
 }
 
+Eigen::Quaternionf yawOnlyQuat(float yaw)
+{
+  return quat_from_euler_xyz(0.0f, 0.0f, yaw);
+}
+
 Eigen::Matrix3f rotation_matrix_from_quat(const Eigen::Quaternionf & q)
 {
   return q.normalized().toRotationMatrix();
+}
+
+float wrapToPi(float angle)
+{
+  constexpr float kPi = 3.14159265358979323846f;
+  const float two_pi = 2.0f * kPi;
+  float wrapped = std::fmod(angle + kPi, two_pi);
+  if (wrapped < 0.0f) {
+    wrapped += two_pi;
+  }
+  return wrapped - kPi;
 }

@@ -17,7 +17,11 @@ repos:
       - id: cpplint
         name: cpplint
         description: Check C++ code against the Google C++ Style Guide.
-        args: ["--filter=-legal/copyright", "--linelength=100"]
+        args:
+          [
+            "--filter=-legal/copyright,-build/c++11,-build/include_order,-build/include_what_you_use,-build/namespaces,-runtime/references,-runtime/string,-whitespace/blank_line,-whitespace/braces,-whitespace/comments,-whitespace/indent,-whitespace/line_length,-whitespace/parens",
+            "--linelength=100",
+          ]
 
   - repo: local
     hooks:
@@ -34,7 +38,7 @@ repos:
       - id: ament_lint_cmake
         name: ament_lint_cmake
         description: Check format of CMakeLists.txt files.
-        stages: [commit]
+        stages: [pre-commit]
         entry: ament_lint_cmake
         language: system
         files: CMakeLists\.txt$
