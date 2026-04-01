@@ -1,0 +1,11 @@
+mode:
+  model_path: weights/policy.onnx
+  use_sim_time: false
+  sim_clock_topic: /acesim/clock
+  use_ros2_odom: false
+  cmd_vel_topic: /rl_arm_position/cmd_vel
+
+airlink:
+  link_mode: serial
+  serial_device: /dev/ttyUSB0
+  wifi_broadcast_ip: 192.168.1.255

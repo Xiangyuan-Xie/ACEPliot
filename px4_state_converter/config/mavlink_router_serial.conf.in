@@ -1,0 +1,10 @@
+[General]
+ReportStats=false
+
+[UartEndpoint px4_serial]
+Device=@SERIAL_DEVICE@
+Baud=@BAUDRATE@
+
+[UdpEndpoint qgc_broadcast]
+Address=@WIFI_BROADCAST_IP@
+Port=@QGC_UDP_PORT@

@@ -1,0 +1,10 @@
+[General]
+ReportStats=false
+
+[UdpEndpoint px4_udp_in]
+Address=0.0.0.0
+Port=@PX4_UDP_BIND_PORT@
+
+[UdpEndpoint qgc_broadcast]
+Address=@WIFI_BROADCAST_IP@
+Port=@QGC_UDP_PORT@

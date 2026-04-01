@@ -50,3 +50,6 @@ px4_external_modes/*/weights/.gitkeep
 
 # Logs
 px4_external_modes/*/logs/
+
+# Codex
+.codex
