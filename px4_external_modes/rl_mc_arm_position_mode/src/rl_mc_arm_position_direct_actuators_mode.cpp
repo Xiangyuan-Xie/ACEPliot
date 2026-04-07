@@ -210,8 +210,8 @@ void RlMCArmPositionDirectActuatorsMode::applyAction(const TensorMap & action, f
   std::vector<float> mapped_vec;
   mapped_vec.reserve(out_vec.size());
   for (const float raw_value : out_vec) {
-    // Match training-side compression while keeping motor command domain [0, 1].
-    const float mapped = 0.5f * (std::tanh(2.0f * raw_value - 1.0f) + 1.0f);
+    // Apply sigmoid(2x) while keeping motor command domain in [0, 1].
+    const float mapped = 1.0f / (1.0f + std::exp(-2.0f * raw_value));
     mapped_vec.push_back(std::clamp(mapped, 0.0f, 1.0f));
   }
 
