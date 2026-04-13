@@ -23,6 +23,7 @@ namespace
 {
 constexpr std::size_t kActionDim = 4;
 constexpr std::size_t kCoreObsDim = 21;  // pos_err_b(3) + att_err_b(9) + gravity(3) + lin_vel_err(3) + ang_vel_err(3)
+constexpr std::size_t kArmJointObsDim = 5;
 constexpr float kCmdZeroEps = 1e-6f;
 }  // namespace
 
@@ -145,6 +146,27 @@ void RlMCArmPositionDirectActuatorsMode::getObservation(TensorMap & inputs, floa
   const auto & arm_velocity = arm_data ? arm_data->ArmVelocity() : empty_vec;
   const auto action_history = getActionObsBuffer().get_flattened_history();
 
+  const auto append_or_zero_arm_channel =
+    [this, &inputs](std::vector<float> & dst, const std::vector<float> & src,
+      const char * label) -> bool {
+      if (src.empty()) {
+        dst.insert(dst.end(), kArmJointObsDim, 0.0f);
+        return true;
+      }
+      if (src.size() != kArmJointObsDim) {
+        RCLCPP_ERROR(
+          node().get_logger(),
+          "Arm observation channel '%s' has size %zu, expected %zu. Skipping inference to avoid misaligned observations.",
+          label,
+          src.size(),
+          kArmJointObsDim);
+        inputs.clear();
+        return false;
+      }
+      dst.insert(dst.end(), src.begin(), src.end());
+      return true;
+    };
+
   // Build policy observation matching training order:
   // [pos_err_b, att_err_b, projected_gravity, lin_vel_err_b, ang_vel_err_b,
   //  arm_command, servo_position, servo_velocity, action_history]
@@ -181,13 +203,44 @@ void RlMCArmPositionDirectActuatorsMode::getObservation(TensorMap & inputs, floa
   obs.push_back(ang_vel_err_b.z());
 
   // 6) arm_command
-  obs.insert(obs.end(), arm_command.begin(), arm_command.end());
+  if (!append_or_zero_arm_channel(obs, arm_command, "arm_command")) {
+    return;
+  }
   // 7) servo_position
-  obs.insert(obs.end(), arm_position.begin(), arm_position.end());
+  if (!append_or_zero_arm_channel(obs, arm_position, "servo_position")) {
+    return;
+  }
   // 8) servo_velocity
-  obs.insert(obs.end(), arm_velocity.begin(), arm_velocity.end());
+  if (!append_or_zero_arm_channel(obs, arm_velocity, "servo_velocity")) {
+    return;
+  }
   // 9) action_history
+  if (action_history.size() != kActionDim) {
+    RCLCPP_ERROR(
+      node().get_logger(),
+      "Action history size %zu does not match expected policy action dimension %zu. Skipping inference to avoid misaligned observations.",
+      action_history.size(),
+      kActionDim);
+    inputs.clear();
+    return;
+  }
   obs.insert(obs.end(), action_history.begin(), action_history.end());
+
+  if (backend()->hasInput("obs")) {
+    const auto shape = backend()->inputShape("obs");
+    if (!shape.empty()) {
+      const std::size_t expected_obs_dim = static_cast<std::size_t>(shape.back());
+      if (obs.size() != expected_obs_dim) {
+        RCLCPP_ERROR(
+          node().get_logger(),
+          "Observation size %zu does not match model input dimension %zu. Skipping inference to avoid silently misaligned observations.",
+          obs.size(),
+          expected_obs_dim);
+        inputs.clear();
+        return;
+      }
+    }
+  }
 
   inputs["obs"] = std::move(obs);
   rnnState().appendInput(inputs);

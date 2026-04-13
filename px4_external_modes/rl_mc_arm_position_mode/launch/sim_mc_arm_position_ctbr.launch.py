@@ -11,7 +11,7 @@ from launch_ros.actions import Node
 def generate_launch_description() -> LaunchDescription:
     pkg_rl_mc_arm_position_mode = get_package_share_directory('rl_mc_arm_position_mode')
     config_file = os.path.join(
-        pkg_rl_mc_arm_position_mode, 'config', 'sim_mc_arm_position_rates_thrust.yaml')
+        pkg_rl_mc_arm_position_mode, 'config', 'sim_mc_arm_position_ctbr.yaml')
     with open(config_file, 'r', encoding='utf-8') as file:
         config = yaml.safe_load(file)
 
@@ -24,6 +24,9 @@ def generate_launch_description() -> LaunchDescription:
         'config_file', default_value=config_file, description='YAML config file')
     model_path_arg = DeclareLaunchArgument(
         'model_path', default_value=model_path, description='ONNX Model Path')
+    metadata_path_arg = DeclareLaunchArgument(
+        'metadata_path', default_value=mode_config.get('metadata_path', os.path.splitext(model_path)[0] + '.json'),
+        description='Policy metadata JSON path')
     use_sim_time_arg = DeclareLaunchArgument(
         'use_sim_time', default_value=str(mode_config['use_sim_time']).lower(),
         description='Use simulation time')
@@ -39,20 +42,23 @@ def generate_launch_description() -> LaunchDescription:
 
     position_mode_node = Node(
         package='rl_mc_arm_position_mode',
-        executable='rl_mc_arm_position_rates_thrust_mode',
+        executable='rl_mc_arm_position_ctbr_mode',
         parameters=[{
             'model_path': LaunchConfiguration('model_path'),
+            'metadata_path': LaunchConfiguration('metadata_path'),
             'use_sim_time': LaunchConfiguration('use_sim_time'),
             'sim_clock_topic': LaunchConfiguration('sim_clock_topic'),
             'use_ros2_odom': LaunchConfiguration('use_ros2_odom'),
             'cmd_vel_topic': LaunchConfiguration('cmd_vel_topic'),
             'cmd_vel_timeout_s': 0.5,
+            'ctbr_collective_scale': mode_config.get('ctbr_collective_scale', 1.0),
         }],
     )
 
     return LaunchDescription([
         config_file_arg,
         model_path_arg,
+        metadata_path_arg,
         use_sim_time_arg,
         sim_clock_topic_arg,
         use_ros2_odom_arg,

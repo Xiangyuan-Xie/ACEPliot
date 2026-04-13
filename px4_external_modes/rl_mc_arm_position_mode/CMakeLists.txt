@@ -31,7 +31,7 @@ add_definitions(-DROOT_DIR="${CMAKE_CURRENT_SOURCE_DIR}/")
 add_library(rl_mc_arm_position_mode
   src/arm_robot_data.cpp
   src/rl_mc_arm_position_direct_actuators_mode.cpp
-  src/rl_mc_arm_position_rates_thrust_mode.cpp
+  src/rl_mc_arm_position_ctbr_mode.cpp
 )
 
 ament_target_dependencies(rl_mc_arm_position_mode
@@ -63,22 +63,22 @@ set_target_properties(
   rl_mc_arm_position_direct_actuators_node PROPERTIES
   OUTPUT_NAME rl_mc_arm_position_direct_actuators_mode)
 
-add_executable(rl_mc_arm_position_rates_thrust_node
-  src/main_rates_thrust.cpp
+add_executable(rl_mc_arm_position_ctbr_node
+  src/main_ctbr.cpp
 )
 
-ament_target_dependencies(rl_mc_arm_position_rates_thrust_node
+ament_target_dependencies(rl_mc_arm_position_ctbr_node
   rclcpp
   px4_ros2_cpp
 )
 
-target_link_libraries(rl_mc_arm_position_rates_thrust_node
+target_link_libraries(rl_mc_arm_position_ctbr_node
   rl_mc_arm_position_mode
 )
 
 set_target_properties(
-  rl_mc_arm_position_rates_thrust_node PROPERTIES
-  OUTPUT_NAME rl_mc_arm_position_rates_thrust_mode)
+  rl_mc_arm_position_ctbr_node PROPERTIES
+  OUTPUT_NAME rl_mc_arm_position_ctbr_mode)
 
 ament_export_targets(rl_mc_arm_position_mode HAS_LIBRARY_TARGET)
 install(
@@ -93,7 +93,7 @@ install(
 install(
   TARGETS
     rl_mc_arm_position_direct_actuators_node
-    rl_mc_arm_position_rates_thrust_node
+    rl_mc_arm_position_ctbr_node
   RUNTIME DESTINATION lib/${PROJECT_NAME}
 )
 
@@ -137,9 +137,18 @@ ament_export_dependencies(
 )
 
 if(BUILD_TESTING)
+  find_package(ament_cmake_gtest REQUIRED)
   find_package(ament_lint_auto REQUIRED)
   set(AMENT_LINT_AUTO_EXCLUDE ament_cmake_copyright)
   ament_lint_auto_find_test_dependencies()
+
+  ament_add_gtest(test_rl_mc_arm_position_ctbr_mode
+    test_rl_mc_arm_position_ctbr_mode.cpp
+  )
+  if(TARGET test_rl_mc_arm_position_ctbr_mode)
+    target_link_libraries(test_rl_mc_arm_position_ctbr_mode rl_mc_arm_position_mode)
+    ament_target_dependencies(test_rl_mc_arm_position_ctbr_mode rclcpp)
+  endif()
 endif()
 
 ament_package()

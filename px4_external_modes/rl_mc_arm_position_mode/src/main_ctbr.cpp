@@ -11,17 +11,17 @@
  ****************************************************************************/
 
 #include <rclcpp/rclcpp.hpp>
-#include <rl_mc_arm_position_rates_thrust_mode.hpp>
+#include <rl_mc_arm_position_ctbr_mode.hpp>
 #include <px4_ros2/components/node_with_mode.hpp>
 
-static constexpr char kNodeName[] = "rl_mc_arm_position_rates_thrust";
+static constexpr char kNodeName[] = "rl_mc_arm_position_ctbr";
 static constexpr bool kEnableDebugOutput = true;
 
 int main(int argc, char * argv[])
 {
   rclcpp::init(argc, argv);
   rclcpp::spin(
-    std::make_shared<px4_ros2::NodeWithMode<RlMCArmPositionRatesThrustMode>>(
+    std::make_shared<px4_ros2::NodeWithMode<RlMCArmPositionCTBRMode>>(
       kNodeName,
       kEnableDebugOutput));
   rclcpp::shutdown();

@@ -14,7 +14,7 @@ def generate_launch_description() -> LaunchDescription:
     pkg_rl_mc_arm_position_mode = get_package_share_directory('rl_mc_arm_position_mode')
     pkg_px4_state_converter = get_package_share_directory('px4_state_converter')
     config_file = os.path.join(
-        pkg_rl_mc_arm_position_mode, 'config', 'real_mc_arm_position_rates_thrust.yaml')
+        pkg_rl_mc_arm_position_mode, 'config', 'real_mc_arm_position_ctbr.yaml')
     with open(config_file, 'r', encoding='utf-8') as file:
         config = yaml.safe_load(file)
 
@@ -25,9 +25,12 @@ def generate_launch_description() -> LaunchDescription:
         model_path = os.path.join(pkg_rl_mc_arm_position_mode, model_path)
 
     config_file_arg = DeclareLaunchArgument(
-        'config_file', default_value=config_file, description='YAML config file for real rates thrust launch')
+        'config_file', default_value=config_file, description='YAML config file for real CTBR launch')
     model_path_arg = DeclareLaunchArgument(
         'model_path', default_value=model_path, description='ONNX Model Path')
+    metadata_path_arg = DeclareLaunchArgument(
+        'metadata_path', default_value=mode_config.get('metadata_path', os.path.splitext(model_path)[0] + '.json'),
+        description='Policy metadata JSON path')
     use_ros2_odom_arg = DeclareLaunchArgument(
         'use_ros2_odom', default_value=str(mode_config['use_ros2_odom']).lower(),
         description='Use external ROS2 odometry')
@@ -46,13 +49,15 @@ def generate_launch_description() -> LaunchDescription:
 
     position_mode_node = Node(
         package='rl_mc_arm_position_mode',
-        executable='rl_mc_arm_position_rates_thrust_mode',
+        executable='rl_mc_arm_position_ctbr_mode',
         parameters=[{
             'model_path': LaunchConfiguration('model_path'),
+            'metadata_path': LaunchConfiguration('metadata_path'),
             'use_sim_time': False,
             'use_ros2_odom': LaunchConfiguration('use_ros2_odom'),
             'cmd_vel_topic': LaunchConfiguration('cmd_vel_topic'),
             'cmd_vel_timeout_s': 0.5,
+            'ctbr_collective_scale': mode_config.get('ctbr_collective_scale', 1.0),
         }],
         output='screen',
     )
@@ -76,6 +81,7 @@ def generate_launch_description() -> LaunchDescription:
     return LaunchDescription([
         config_file_arg,
         model_path_arg,
+        metadata_path_arg,
         use_ros2_odom_arg,
         cmd_vel_topic_arg,
         airlink_mode_arg,
