@@ -1,7 +1,7 @@
 [submodule "third_party/px4_msgs"]
 	path = third_party/px4_msgs
-	url = https://github.com/PX4/px4_msgs
-	branch = release/1.17
+	url = https://github.com/Xiangyuan-Xie/px4_msgs
+	branch = ACEPliot
 [submodule "third_party/px4-ros2-interface-lib"]
 	path = third_party/px4-ros2-interface-lib
 	url = https://github.com/Auterion/px4-ros2-interface-lib
