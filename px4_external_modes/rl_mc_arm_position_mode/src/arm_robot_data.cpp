@@ -16,24 +16,17 @@
 ArmRobotData::ArmRobotData(px4_ros2::ModeBase & mode_base)
 : RobotData(mode_base)
 {
-  // Declare and read arm topic parameters with runtime remapping support.
+  // Declare and read the arm state topic with runtime remapping support.
   auto & node_ref = mode_base.node();
-  if (!node_ref.has_parameter("arm_command_topic")) {
-    node_ref.declare_parameter("arm_command_topic", "/arm/command");
-  }
   if (!node_ref.has_parameter("arm_state_topic")) {
     node_ref.declare_parameter("arm_state_topic", "/arm/state");
   }
 
-  const auto arm_command_topic = node_ref.get_parameter("arm_command_topic").as_string();
   const auto arm_state_topic = node_ref.get_parameter("arm_state_topic").as_string();
   const auto best_effort_qos = rclcpp::QoS(rclcpp::KeepLast(1)).best_effort();
 
-  // Subscribe to arm command and arm state topics.
-  arm_command_sub_ = node_ref.create_subscription<sensor_msgs::msg::JointState>(
-    arm_command_topic,
-    best_effort_qos,
-    std::bind(&ArmRobotData::armCommandCallback, this, std::placeholders::_1));
+  // Subscribe only to the arm state topic because policy observations no longer
+  // include a separate command channel.
   arm_state_sub_ = node_ref.create_subscription<sensor_msgs::msg::JointState>(
     arm_state_topic,
     best_effort_qos,
@@ -45,25 +38,14 @@ const std::vector<float> & ArmRobotData::ArmPosition() const
   return arm_position_;
 }
 
-const std::vector<float> & ArmRobotData::ArmCommand() const
-{
-  return arm_command_;
-}
-
 const std::vector<float> & ArmRobotData::ArmVelocity() const
 {
   return arm_velocity_;
 }
 
-void ArmRobotData::armCommandCallback(const sensor_msgs::msg::JointState::SharedPtr msg)
-{
-  // Cache latest joint commands for observation construction and logging.
-  arm_command_.assign(msg->position.begin(), msg->position.end());
-}
-
 void ArmRobotData::armStateCallback(const sensor_msgs::msg::JointState::SharedPtr msg)
 {
-  // Cache latest joint states while keeping command and state channels decoupled.
+  // Cache the latest joint states for policy observations.
   arm_position_.assign(msg->position.begin(), msg->position.end());
   arm_velocity_.assign(msg->velocity.begin(), msg->velocity.end());
 }

@@ -143,7 +143,7 @@ if(BUILD_TESTING)
   ament_lint_auto_find_test_dependencies()
 
   ament_add_gtest(test_rl_mc_arm_position_ctbr_mode
-    test_rl_mc_arm_position_ctbr_mode.cpp
+    test/test_rl_mc_arm_position_ctbr_mode.cpp
   )
   if(TARGET test_rl_mc_arm_position_ctbr_mode)
     target_link_libraries(test_rl_mc_arm_position_ctbr_mode rl_mc_arm_position_mode)

@@ -142,7 +142,6 @@ void RlMCArmPositionDirectActuatorsMode::getObservation(TensorMap & inputs, floa
   const Eigen::Vector3f ang_vel_err_b = base_ang_vel_cmd_b - ang_vel_b;
   const std::vector<float> empty_vec;
   const auto & arm_position = arm_data ? arm_data->ArmPosition() : empty_vec;
-  const auto & arm_command = arm_data ? arm_data->ArmCommand() : empty_vec;
   const auto & arm_velocity = arm_data ? arm_data->ArmVelocity() : empty_vec;
   const auto action_history = getActionObsBuffer().get_flattened_history();
 
@@ -169,10 +168,10 @@ void RlMCArmPositionDirectActuatorsMode::getObservation(TensorMap & inputs, floa
 
   // Build policy observation matching training order:
   // [pos_err_b, att_err_b, projected_gravity, lin_vel_err_b, ang_vel_err_b,
-  //  arm_command, servo_position, servo_velocity, action_history]
+  //  servo_position, servo_velocity, action_history]
   std::vector<float> obs;
   obs.reserve(
-    kCoreObsDim + arm_command.size() + arm_position.size() + arm_velocity.size() +
+    kCoreObsDim + arm_position.size() + arm_velocity.size() +
     action_history.size());
 
   // 1) pos_err_b (3)
@@ -202,19 +201,15 @@ void RlMCArmPositionDirectActuatorsMode::getObservation(TensorMap & inputs, floa
   obs.push_back(ang_vel_err_b.y());
   obs.push_back(ang_vel_err_b.z());
 
-  // 6) arm_command
-  if (!append_or_zero_arm_channel(obs, arm_command, "arm_command")) {
-    return;
-  }
-  // 7) servo_position
+  // 6) servo_position
   if (!append_or_zero_arm_channel(obs, arm_position, "servo_position")) {
     return;
   }
-  // 8) servo_velocity
+  // 7) servo_velocity
   if (!append_or_zero_arm_channel(obs, arm_velocity, "servo_velocity")) {
     return;
   }
-  // 9) action_history
+  // 8) action_history
   if (action_history.size() != kActionDim) {
     RCLCPP_ERROR(
       node().get_logger(),
@@ -406,10 +401,6 @@ void RlMCArmPositionDirectActuatorsMode::logTargetValues(float dt_s)
   };
   flightLogger()->log("target_reference_meta", target_meta_msg, now_s);
 
-  // Log arm command trajectory to inspect coupling with policy outputs.
-  std_msgs::msg::Float32MultiArray arm_command_msg;
-  arm_command_msg.data = arm_data->ArmCommand();
-  flightLogger()->log("arm_command", arm_command_msg, now_s);
 }
 
 ArmRobotData * RlMCArmPositionDirectActuatorsMode::armRobotData()

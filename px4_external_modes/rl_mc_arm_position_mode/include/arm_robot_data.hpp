@@ -21,8 +21,8 @@
  * @class ArmRobotData
  * @brief Robot data extension for arm-positioning mode.
  *
- * This class extends RobotData with arm command/state channels
- * used during observation construction.
+ * This class extends RobotData with arm joint state channels used during
+ * observation construction.
  */
 class ArmRobotData : public RobotData
 {
@@ -40,12 +40,6 @@ public:
   const std::vector<float> & ArmPosition() const;
 
   /**
-   * @brief Returns latest arm joint commands.
-   * @return Arm joint command vector.
-   */
-  const std::vector<float> & ArmCommand() const;
-
-  /**
    * @brief Returns latest arm joint velocities.
    * @return Arm joint velocity vector.
    */
@@ -53,22 +47,13 @@ public:
 
 private:
   /**
-   * @brief Callback for arm command topic.
-   * @param msg JointState message.
-   */
-  void armCommandCallback(const sensor_msgs::msg::JointState::SharedPtr msg);
-
-  /**
    * @brief Callback for arm state topic.
    * @param msg JointState message.
    */
   void armStateCallback(const sensor_msgs::msg::JointState::SharedPtr msg);
 
   rclcpp::Subscription<sensor_msgs::msg::JointState>::SharedPtr
-    arm_command_sub_;  ///< Arm command subscription.
-  rclcpp::Subscription<sensor_msgs::msg::JointState>::SharedPtr
     arm_state_sub_;  ///< Arm state subscription.
   std::vector<float> arm_position_;  ///< Arm joint position cache.
-  std::vector<float> arm_command_;   ///< Arm joint command cache.
   std::vector<float> arm_velocity_;  ///< Arm joint velocity cache.
 };
