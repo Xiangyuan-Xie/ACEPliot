@@ -1,6 +1,0 @@
-mode:
-  model_path: weights/policy.onnx
-  use_sim_time: true
-  sim_clock_topic: /acesim/clock
-  use_ros2_odom: false
-  cmd_vel_topic: /rl_arm_position/cmd_vel

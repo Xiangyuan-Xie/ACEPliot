@@ -17,7 +17,6 @@ find_package(ament_cmake REQUIRED)
 find_package(eigen3_cmake_module REQUIRED)
 find_package(Eigen3 REQUIRED)
 find_package(rclcpp REQUIRED)
-find_package(px4_ros2_cpp REQUIRED)
 find_package(onnxruntime_vendor REQUIRED)
 find_package(nav_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
@@ -40,9 +39,6 @@ set(HEADER_FILES
     include/inference/onnx_ort_backend.hpp
     include/math.hpp
     include/observation_buffer.hpp
-    include/trajectory_generators/generator.hpp
-    include/trajectory_generators/rc_manual_generator.hpp
-    include/trajectory_generators/figure8_generator.hpp
 )
 
 add_library(rl_mode_utils
@@ -52,13 +48,10 @@ add_library(rl_mode_utils
     src/inference/onnx_ort_backend.cpp
     src/observation_buffer.cpp
     src/math.cpp
-    src/trajectory_generators/rc_manual_generator.cpp
-    src/trajectory_generators/figure8_generator.cpp
 )
 
 ament_target_dependencies(rl_mode_utils
   rclcpp
-  px4_ros2_cpp
   nav_msgs
   geometry_msgs
   std_msgs
@@ -79,7 +72,6 @@ target_link_libraries(rl_mode_utils
 ament_export_targets(rl_mode_utils HAS_LIBRARY_TARGET)
 ament_export_dependencies(
     rclcpp
-    px4_ros2_cpp
     eigen3_cmake_module
     Eigen3
     onnxruntime_vendor

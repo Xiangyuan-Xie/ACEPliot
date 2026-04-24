@@ -1,0 +1,23 @@
+/**:
+  ros__parameters:
+    publish_rate_hz: 50.0
+    topic_namespace_prefix: ""
+    use_ros2_odom: false
+    odom_topic: /odom
+    offboard_control_mode_topic: /fmu/in/offboard_control_mode
+    trajectory_setpoint_topic: /fmu/in/trajectory_setpoint
+
+    rc_manual.v_xy: 2.0
+    rc_manual.v_up: 1.0
+    rc_manual.v_down: 0.5
+    rc_manual.acc_xy: 4.0
+    rc_manual.hold_max_xy: 0.3
+    rc_manual.hold_max_z: 0.1
+    rc_manual.yaw_rate_max_deg: 45.0
+    rc_manual.expo: 5.0
+    rc_manual.deadzone: 0.1
+    rc_manual.v_xy_side_k: 0.9
+    rc_manual.v_xy_back_k: 1.2
+    rc_manual.v_xy_repos_min: 0.3
+    rc_manual.stick_brake_eps: 0.02
+    rc_manual.reset_jump_thresh: 0.5

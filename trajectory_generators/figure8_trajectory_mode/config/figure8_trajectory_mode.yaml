@@ -1,0 +1,26 @@
+/**:
+  ros__parameters:
+    publish_rate_hz: 50.0
+    topic_namespace_prefix: ""
+    use_ros2_odom: false
+    odom_topic: /odom
+    offboard_control_mode_topic: /fmu/in/offboard_control_mode
+    trajectory_setpoint_topic: /fmu/in/trajectory_setpoint
+    path_topic: /trajectory_generators/path
+    publish_path: true
+
+    figure8.period_s: 10.0
+    figure8.A: 1.0
+    figure8.B: 1.0
+    figure8.yaw_rate: 0.0
+    figure8.target_height: 1.0
+    figure8.max_speed: 2.0
+    figure8.max_acceleration: 2.0
+    figure8.transition_time: 1.0
+    figure8.decel_time: 1.0
+    figure8.loops_to_run: 5
+    figure8.max_phase_accel: 20.0
+    figure8.climb_speed: 0.5
+    figure8.climb_accel: 1.0
+    figure8.land_speed: 0.5
+    figure8.land_accel: 1.0

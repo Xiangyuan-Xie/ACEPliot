@@ -1,0 +1,163 @@
+cmake_minimum_required(VERSION 3.5)
+project(am_position_mode)
+
+if(NOT CMAKE_CXX_STANDARD)
+    set(CMAKE_CXX_STANDARD 17)
+endif()
+
+if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+    add_compile_options(-Wall -Wextra -Wpedantic -Werror -Wno-unused-parameter)
+endif()
+
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
+find_package(eigen3_cmake_module REQUIRED)
+find_package(Eigen3 REQUIRED)
+find_package(ament_cmake REQUIRED)
+find_package(rclcpp REQUIRED)
+find_package(std_msgs REQUIRED)
+find_package(sensor_msgs REQUIRED)
+find_package(geometry_msgs REQUIRED)
+find_package(rosgraph_msgs REQUIRED)
+find_package(px4_msgs REQUIRED)
+find_package(px4_ros2_cpp REQUIRED)
+find_package(rl_base_mode REQUIRED)
+find_package(rl_mode_utils REQUIRED)
+
+include_directories(include ${Eigen3_INCLUDE_DIRS})
+
+add_definitions(-DROOT_DIR="${CMAKE_CURRENT_SOURCE_DIR}/")
+
+add_library(am_position_mode
+  src/arm_robot_data.cpp
+  src/am_position_offboard_reference.cpp
+  src/am_position_motor_mode.cpp
+  src/am_position_ctbr_mode.cpp
+)
+
+ament_target_dependencies(am_position_mode
+  rclcpp
+  std_msgs
+  sensor_msgs
+  geometry_msgs
+  rosgraph_msgs
+  px4_msgs
+  px4_ros2_cpp
+  rl_base_mode
+  rl_mode_utils
+)
+
+add_executable(am_position_motor_node
+  src/main_motor.cpp
+)
+
+ament_target_dependencies(am_position_motor_node
+  rclcpp
+  px4_ros2_cpp
+)
+
+target_link_libraries(am_position_motor_node
+  am_position_mode
+)
+
+set_target_properties(
+  am_position_motor_node PROPERTIES
+  OUTPUT_NAME am_position_motor_mode)
+
+add_executable(am_position_ctbr_node
+  src/main_ctbr.cpp
+)
+
+ament_target_dependencies(am_position_ctbr_node
+  rclcpp
+  px4_ros2_cpp
+)
+
+target_link_libraries(am_position_ctbr_node
+  am_position_mode
+)
+
+set_target_properties(
+  am_position_ctbr_node PROPERTIES
+  OUTPUT_NAME am_position_ctbr_mode)
+
+ament_export_targets(am_position_mode HAS_LIBRARY_TARGET)
+install(
+  TARGETS
+    am_position_mode
+  EXPORT am_position_mode
+  LIBRARY DESTINATION lib
+  ARCHIVE DESTINATION lib
+  INCLUDES DESTINATION include
+)
+
+install(
+  TARGETS
+    am_position_motor_node
+    am_position_ctbr_node
+  RUNTIME DESTINATION lib/${PROJECT_NAME}
+)
+
+install(
+  DIRECTORY include/
+  DESTINATION include
+)
+
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/launch")
+  install(
+    DIRECTORY launch
+    DESTINATION share/${PROJECT_NAME}/
+  )
+endif()
+
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/config")
+  install(
+    DIRECTORY config
+    DESTINATION share/${PROJECT_NAME}/
+  )
+endif()
+
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/weights")
+  install(
+    DIRECTORY weights
+    DESTINATION share/${PROJECT_NAME}/
+  )
+endif()
+
+ament_export_include_directories(include)
+ament_export_dependencies(
+  rclcpp
+  std_msgs
+  sensor_msgs
+  geometry_msgs
+  rosgraph_msgs
+  px4_msgs
+  px4_ros2_cpp
+  rl_base_mode
+  rl_mode_utils
+)
+
+if(BUILD_TESTING)
+  find_package(ament_cmake_gtest REQUIRED)
+  find_package(ament_lint_auto REQUIRED)
+  set(AMENT_LINT_AUTO_EXCLUDE ament_cmake_copyright)
+  ament_lint_auto_find_test_dependencies()
+
+  ament_add_gtest(test_am_position_ctbr_mode
+    test/test_am_position_ctbr_mode.cpp
+  )
+  if(TARGET test_am_position_ctbr_mode)
+    target_link_libraries(test_am_position_ctbr_mode am_position_mode)
+    ament_target_dependencies(test_am_position_ctbr_mode rclcpp)
+  endif()
+
+  ament_add_gtest(test_am_position_offboard_reference
+    test/test_am_position_offboard_reference.cpp
+  )
+  if(TARGET test_am_position_offboard_reference)
+    target_link_libraries(test_am_position_offboard_reference am_position_mode)
+    ament_target_dependencies(test_am_position_offboard_reference rclcpp px4_msgs px4_ros2_cpp)
+  endif()
+endif()
+
+ament_package()

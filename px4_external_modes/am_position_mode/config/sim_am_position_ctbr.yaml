@@ -1,0 +1,10 @@
+mode:
+  model_path: weights/policy.onnx
+  metadata_path: weights/policy.json
+  use_sim_time: true
+  sim_clock_topic: /acesim/clock
+  use_ros2_odom: false
+  offboard_control_mode_topic: /fmu/in/offboard_control_mode
+  trajectory_setpoint_topic: /fmu/in/trajectory_setpoint
+  offboard_setpoint_timeout_s: 0.5
+  ctbr_collective_scale: 1.0
