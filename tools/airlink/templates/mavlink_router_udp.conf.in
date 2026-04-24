@@ -1,0 +1,11 @@
+[General]
+ReportStats=false
+
+[UdpEndpoint px4_udp_in]
+Address=@PX4_UDP_BIND_ADDRESS@
+Port=@PX4_UDP_BIND_PORT@
+
+[UdpEndpoint gcs_listen]
+Mode=Server
+Address=@GCS_BIND_ADDRESS@
+Port=@GCS_UDP_PORT@

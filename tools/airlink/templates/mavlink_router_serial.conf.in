@@ -5,6 +5,7 @@ ReportStats=false
 Device=@SERIAL_DEVICE@
 Baud=@BAUDRATE@
 
-[UdpEndpoint qgc_broadcast]
-Address=@WIFI_BROADCAST_IP@
-Port=@QGC_UDP_PORT@
+[UdpEndpoint gcs_listen]
+Mode=Server
+Address=@GCS_BIND_ADDRESS@
+Port=@GCS_UDP_PORT@
