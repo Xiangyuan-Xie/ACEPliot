@@ -43,7 +43,7 @@ ACEPliot/
 ├── px4_external_modes/
 │   ├── rl_base_mode/                  # RL 模式基类与共享机器人状态抽象
 │   ├── rl_mode_utils/                 # ONNX 推理、日志、轨迹生成等工具库
-│   └── rl_mc_arm_position_mode/       # 多旋翼机械臂位置控制模式、launch、YAML、模型权重
+│   └── am_position_mode/       # 多旋翼机械臂位置控制模式、launch、YAML、模型权重
 ├── px4_state_converter/               # PX4/ROS 2 状态、里程计、AirLink 相关节点与 launch
 └── third_party/                       # px4_msgs、px4_ros2_cpp 等第三方依赖源码
 ```
@@ -76,9 +76,7 @@ rosdep update
 
 ### 2. 安装 `mavlink-routerd`
 
-`AirLink` launch 运行时会直接调用 `mavlink-routerd`。如果机载电脑没有这个命令，真机链路无法启动。
-
-Ubuntu 22.04 上可直接安装：
+`AirLink` 现在通过仓库里的工具脚本配置 `mavlink-routerd`，但 `mavlink-router` 本身可以由用户自行安装。Ubuntu 22.04 上可直接执行：
 
 ```bash
 sudo apt update
@@ -167,20 +165,20 @@ source /path/to/ACEPliot/install/setup.bash
 
 ## RL 模式使用
 
-`rl_mc_arm_position_mode` 当前提供 4 个 launch 入口，分别覆盖仿真/真机以及两种控制输出形式。
+`am_position_mode` 当前提供 4 个 launch 入口，分别覆盖仿真/真机以及两种控制输出形式。
 
 ### 仿真
 
-直接电机版本：
+Motor 版本：
 
 ```bash
-ros2 launch rl_mc_arm_position_mode sim_mc_arm_position_direct_actuators.launch.py
+ros2 launch am_position_mode sim_am_position_motor.launch.py
 ```
 
-角速率与推力版本：
+CTBR 版本：
 
 ```bash
-ros2 launch rl_mc_arm_position_mode sim_mc_arm_position_rates_thrust.launch.py
+ros2 launch am_position_mode sim_am_position_ctbr.launch.py
 ```
 
 这两个仿真 launch 默认读取各自对应的 YAML，并支持覆盖以下参数：
@@ -190,109 +188,164 @@ ros2 launch rl_mc_arm_position_mode sim_mc_arm_position_rates_thrust.launch.py
 - `use_sim_time`
 - `sim_clock_topic`
 - `use_ros2_odom`
-- `cmd_vel_topic`
+- `offboard_control_mode_topic`
+- `trajectory_setpoint_topic`
+- `offboard_setpoint_timeout_s`
 
-例如覆盖模型路径和控制输入话题：
+例如覆盖模型路径和 Offboard 参考话题：
 
 ```bash
-ros2 launch rl_mc_arm_position_mode sim_mc_arm_position_direct_actuators.launch.py \
+ros2 launch am_position_mode sim_am_position_motor.launch.py \
   model_path:=/absolute/path/to/policy.onnx \
-  cmd_vel_topic:=/my_cmd_vel
+  trajectory_setpoint_topic:=/fmu/in/trajectory_setpoint
 ```
 
 ### 真机
 
-直接电机版本：
+Motor 版本：
 
 ```bash
-ros2 launch rl_mc_arm_position_mode real_mc_arm_position_direct_actuators.launch.py
+ros2 launch am_position_mode real_am_position_motor.launch.py
 ```
 
-角速率与推力版本：
+CTBR 版本：
 
 ```bash
-ros2 launch rl_mc_arm_position_mode real_mc_arm_position_rates_thrust.launch.py
+ros2 launch am_position_mode real_am_position_ctbr.launch.py
 ```
 
 真机 launch 会同时启动：
 
 - RL 模式节点
 - `MicroXRCEAgent`
-- `px4_state_converter` 里的 `AirLink`
+- 预先配置好的 `mavlink-routerd`
 
 真机使用前请确认：
 
 - PX4 端已经启动 `uxrce_dds_client`
 - 机载电脑上已经安装 `MicroXRCEAgent`
-- 机载电脑上已经安装 `mavlink-routerd`
+- 机载电脑上已经运行过 `./tools/airlink/configure_airlink.sh`
 
 这两个真机 launch 支持覆盖以下参数：
 
 - `config_file`
 - `model_path`
 - `use_ros2_odom`
-- `cmd_vel_topic`
-- `airlink_mode`
-- `airlink_serial_device`
-- `airlink_wifi_broadcast_ip`
-
-例如切换成 UDP 上行并指定广播地址：
-
-```bash
-ros2 launch rl_mc_arm_position_mode real_mc_arm_position_direct_actuators.launch.py \
-  airlink_mode:=udp \
-  airlink_wifi_broadcast_ip:=192.168.1.255
-```
+- `offboard_control_mode_topic`
+- `trajectory_setpoint_topic`
+- `offboard_setpoint_timeout_s`
 
 例如指定串口设备和模型路径：
 
 ```bash
-ros2 launch rl_mc_arm_position_mode real_mc_arm_position_rates_thrust.launch.py \
-  airlink_mode:=serial \
-  airlink_serial_device:=/dev/ttyUSB0 \
+ros2 launch am_position_mode real_am_position_ctbr.launch.py \
   model_path:=/absolute/path/to/policy.onnx
 ```
 
 ## px4_state_converter 使用
 
-`px4_state_converter` 不只给 RL 真机 launch 提供 `AirLink`，也可以单独启动状态和里程计转换节点。
+`px4_state_converter` 现在只负责状态和里程计转换节点。地面站链路改由 `tools/airlink/` 下的独立工具脚本维护。
+
+## trajectory_generators 使用
+
+`trajectory_generators/` 现在是父目录，下面拆成 3 个 ROS2 包：
+
+- `trajectory_generator_utils`
+- `figure8_trajectory_mode`
+- `rc_manual_trajectory_mode`
+
+其中 `trajectory_generator_utils` 提供共享的轨迹数据结构、PX4 Offboard 消息转换和状态读取工具；实际启动入口是后两个 mode 包。
+
+### figure8_trajectory_mode
+
+默认 launch：
+
+```bash
+ros2 launch figure8_trajectory_mode figure8_trajectory_mode.launch.py
+```
+
+默认会发布以下话题：
+
+- `/fmu/in/offboard_control_mode`
+- `/fmu/in/trajectory_setpoint`
+- `/trajectory_generators/path`
+
+默认配置文件：
+
+- `trajectory_generators/figure8_trajectory_mode/config/figure8_trajectory_mode.yaml`
+
+公开参数为 `figure8.*` 以及公共发布/状态参数，例如：
+
+- `publish_rate_hz`
+- `use_ros2_odom`
+- `odom_topic`
+- `offboard_control_mode_topic`
+- `trajectory_setpoint_topic`
+- `path_topic`
+- `publish_path`
+- `figure8.period_s`
+- `figure8.target_height`
+
+### rc_manual_trajectory_mode
+
+默认 launch：
+
+```bash
+ros2 launch rc_manual_trajectory_mode rc_manual_trajectory_mode.launch.py
+```
+
+默认会发布以下话题：
+
+- `/fmu/in/offboard_control_mode`
+- `/fmu/in/trajectory_setpoint`
+
+默认配置文件：
+
+- `trajectory_generators/rc_manual_trajectory_mode/config/rc_manual_trajectory_mode.yaml`
+
+公开参数为 `rc_manual.*` 以及公共发布/状态参数，例如：
+
+- `publish_rate_hz`
+- `use_ros2_odom`
+- `odom_topic`
+- `offboard_control_mode_topic`
+- `trajectory_setpoint_topic`
+- `rc_manual.v_xy`
+- `rc_manual.v_up`
+- `rc_manual.v_down`
+- `rc_manual.acc_xy`
+- `rc_manual.yaw_rate_max_deg`
 
 ### 1. AirLink 地面站链路
 
-`airlink.launch.py` 用于把 PX4 的 MAVLink 数据通过 WiFi 转给 QGroundControl。
+`tools/airlink/` 负责把 PX4 的 MAVLink 数据交给 `mavlink-routerd`，并以 UDP server 模式等待 QGroundControl 主动连接，不再使用广播。
 
-默认启动：
-
-```bash
-ros2 launch px4_state_converter airlink.launch.py
-```
-
-如果 PX4 是通过 UDP 把 MAVLink 发给机载电脑：
+先确保系统里已经安装 `mavlink-router`：
 
 ```bash
-ros2 launch px4_state_converter airlink.launch.py \
-  link_mode:=udp
+sudo apt update
+sudo apt install -y mavlink-router
 ```
 
-如果 PX4 是通过串口接到机载电脑：
+交互式选择仓库里的链路配置并写入 `/etc/mavlink-router/main.conf`：
 
 ```bash
-ros2 launch px4_state_converter airlink.launch.py \
-  link_mode:=serial \
-  serial_device:=/dev/ttyUSB0 \
-  wifi_broadcast_ip:=192.168.1.255
+./tools/airlink/configure_airlink.sh
 ```
 
-`airlink.launch.py` 当前公开的参数为：
+仓库内当前提供两种场景配置：
 
-- `link_mode`
-- `serial_device`
-- `wifi_broadcast_ip`
+- `tools/airlink/configs/serial.yaml`：机载电脑通过串口直连 PX4
+- `tools/airlink/configs/udp.yaml`：PX4 通过 UDP 把 MAVLink 发到机载电脑
+- `tools/airlink/configure_airlink.sh`：交互式选择配置，并重启 `mavlink-router` 服务
 
-两种链路模式的区别：
+排障时可直接查看服务日志：
 
-- `serial`：机载电脑通过串口直接连接 PX4
-- `udp`：PX4 已经把 MAVLink 通过 UDP 发到机载电脑
+```bash
+sudo journalctl -u mavlink-router -f
+```
+
+QGroundControl 侧请手动添加一个 UDP 链路，目标填机载电脑 IP，端口填 `14550`。
 
 ### 2. 外部里程计发送到 PX4
 
@@ -341,15 +394,15 @@ ros2 launch px4_state_converter gt_odometry.launch.py \
 
 4 个 RL launch 默认分别对应以下 YAML：
 
-- `px4_external_modes/rl_mc_arm_position_mode/config/sim_mc_arm_position_direct_actuators.yaml`
-- `px4_external_modes/rl_mc_arm_position_mode/config/sim_mc_arm_position_rates_thrust.yaml`
-- `px4_external_modes/rl_mc_arm_position_mode/config/real_mc_arm_position_direct_actuators.yaml`
-- `px4_external_modes/rl_mc_arm_position_mode/config/real_mc_arm_position_rates_thrust.yaml`
+- `px4_external_modes/am_position_mode/config/sim_am_position_motor.yaml`
+- `px4_external_modes/am_position_mode/config/sim_am_position_ctbr.yaml`
+- `px4_external_modes/am_position_mode/config/real_am_position_motor.yaml`
+- `px4_external_modes/am_position_mode/config/real_am_position_ctbr.yaml`
 
 默认模型文件路径为：
 
 ```text
-px4_external_modes/rl_mc_arm_position_mode/weights/policy.onnx
+px4_external_modes/am_position_mode/weights/policy.onnx
 ```
 
 `model_path` 支持通过 launch 参数传入绝对路径覆盖。
@@ -360,10 +413,9 @@ px4_external_modes/rl_mc_arm_position_mode/weights/policy.onnx
 
 - `cmd_vel_timeout_s = 0.5`
 - `MicroXRCEAgent` 启动命令固定为 `udp4 -p 8888`
-- `AirLink` 串口波特率固定为 `921600`
-- `AirLink` 的 QGroundControl UDP 端口固定为 `14550`
+- `AirLink` 默认串口波特率固定为 `921600`
+- `AirLink` 的 QGroundControl UDP 监听端口固定为 `14550`
 - 当 `link_mode=udp` 时，PX4 UDP 监听端口固定为 `14540`
-- 真机默认广播地址来自 YAML，当前为 `192.168.1.255`
 
 ## 许可证
 
