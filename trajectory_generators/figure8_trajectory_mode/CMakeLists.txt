@@ -39,11 +39,11 @@ target_link_libraries(figure8_trajectory_mode
   Eigen3::Eigen
 )
 
-add_executable(figure8_trajectory_mode_node
-  src/figure8_trajectory_mode_node.cpp
+add_executable(figure8_position_mode_node
+  src/figure8_position_mode_node.cpp
 )
 
-ament_target_dependencies(figure8_trajectory_mode_node
+ament_target_dependencies(figure8_position_mode_node
   rclcpp
   nav_msgs
   px4_msgs
@@ -51,7 +51,23 @@ ament_target_dependencies(figure8_trajectory_mode_node
   trajectory_generator_utils
 )
 
-target_link_libraries(figure8_trajectory_mode_node
+target_link_libraries(figure8_position_mode_node
+  figure8_trajectory_mode
+)
+
+add_executable(figure8_velocity_mode_node
+  src/figure8_velocity_mode_node.cpp
+)
+
+ament_target_dependencies(figure8_velocity_mode_node
+  rclcpp
+  nav_msgs
+  px4_msgs
+  px4_ros2_cpp
+  trajectory_generator_utils
+)
+
+target_link_libraries(figure8_velocity_mode_node
   figure8_trajectory_mode
 )
 
@@ -66,7 +82,8 @@ install(
 
 install(
   TARGETS
-    figure8_trajectory_mode_node
+    figure8_position_mode_node
+    figure8_velocity_mode_node
   RUNTIME DESTINATION lib/${PROJECT_NAME}
 )
 
@@ -104,6 +121,14 @@ if(BUILD_TESTING)
   if(TARGET test_figure8_generator)
     target_link_libraries(test_figure8_generator figure8_trajectory_mode)
     ament_target_dependencies(test_figure8_generator rclcpp nav_msgs trajectory_generator_utils)
+  endif()
+
+  ament_add_gtest(test_figure8_mode_utils
+    test/test_figure8_mode_utils.cpp
+  )
+  if(TARGET test_figure8_mode_utils)
+    target_include_directories(test_figure8_mode_utils PRIVATE src)
+    ament_target_dependencies(test_figure8_mode_utils trajectory_generator_utils)
   endif()
 endif()
 

@@ -8,16 +8,16 @@ from launch_ros.actions import Node
 
 
 def generate_launch_description() -> LaunchDescription:
-    package_share = get_package_share_directory("rc_manual_trajectory_mode")
+    package_share = get_package_share_directory("figure8_trajectory_mode")
     config_file = os.path.join(
-        package_share, "config", "rc_manual_trajectory_mode.yaml")
+        package_share, "config", "figure8_position_mode.yaml")
 
     config_file_arg = DeclareLaunchArgument(
-        "config_file", default_value=config_file, description="RC manual config file")
+        "config_file", default_value=config_file, description="Figure8 position-mode config file")
 
     node = Node(
-        package="rc_manual_trajectory_mode",
-        executable="rc_manual_trajectory_mode_node",
+        package="figure8_trajectory_mode",
+        executable="figure8_position_mode_node",
         parameters=[LaunchConfiguration("config_file")],
         output="screen",
     )

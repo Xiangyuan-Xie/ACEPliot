@@ -13,13 +13,15 @@
 #include <trajectory_generator_utils/offboard_conversion.hpp>
 #include <trajectory_generator_utils/state_provider.hpp>
 
+#include "figure8_mode_utils.hpp"
+
 namespace
 {
-class Figure8TrajectoryModeNode : public rclcpp::Node
+class Figure8PositionModeNode : public rclcpp::Node
 {
 public:
-  Figure8TrajectoryModeNode()
-  : rclcpp::Node("figure8_trajectory_mode"),
+  Figure8PositionModeNode()
+  : rclcpp::Node("figure8_position_mode"),
     px4_context_(*this, this->declare_parameter<std::string>("topic_namespace_prefix", ""))
   {
     publish_rate_hz_ = std::max(1.0, this->declare_parameter<double>("publish_rate_hz", 50.0));
@@ -83,7 +85,7 @@ public:
     const auto period = std::chrono::duration<double>(1.0 / publish_rate_hz_);
     timer_ = this->create_wall_timer(
       std::chrono::duration_cast<std::chrono::nanoseconds>(period),
-      std::bind(&Figure8TrajectoryModeNode::onTimer, this));
+      std::bind(&Figure8PositionModeNode::onTimer, this));
   }
 
 private:
@@ -100,7 +102,7 @@ private:
     }
 
     const float dt_s = static_cast<float>(1.0 / publish_rate_hz_);
-    const TrajectorySample sample = generator_.step(dt_s, state);
+    const TrajectorySample sample = makePositionModeSample(generator_.step(dt_s, state));
 
     offboard_control_mode_pub_->publish(makeOffboardControlMode(sample));
     trajectory_setpoint_pub_->publish(makeTrajectorySetpoint(sample));
@@ -127,7 +129,7 @@ private:
 int main(int argc, char * argv[])
 {
   rclcpp::init(argc, argv);
-  rclcpp::spin(std::make_shared<Figure8TrajectoryModeNode>());
+  rclcpp::spin(std::make_shared<Figure8PositionModeNode>());
   rclcpp::shutdown();
   return 0;
 }
