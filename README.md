@@ -85,14 +85,21 @@ rosdep update
 
 ### 2. 安装 `mavlink-routerd`
 
-`AirLink` 相关工具依赖 `mavlink-routerd`。在 Ubuntu 22.04 上可直接安装：
+`AirLink` 相关工具依赖 `mavlink-routerd`。本仓库将官方 `mavlink-router` 固定为 `third_party/mavlink-router` 子模块，并通过源码构建安装；`mavlink-anywhere` 可作为安装思路参考，但不是本仓库的运行依赖。
+
+首次 clone 仓库后请先初始化子模块：
 
 ```bash
-sudo apt update
-sudo apt install -y mavlink-router
+git submodule update --init --recursive
 ```
 
-安装完成后可执行以下命令确认是否可用：
+随后运行 AirLink 安装脚本。该脚本会安装 `mavlink-router` 的构建依赖，初始化 `third_party/mavlink-router` 内部依赖，并执行 Meson/Ninja 源码安装：
+
+```bash
+./tools/airlink/install_mavlink_router.sh
+```
+
+安装完成后可执行以下命令确认 `mavlink-routerd` 是否可用：
 
 ```bash
 which mavlink-routerd
@@ -380,11 +387,11 @@ ros2 launch px4_state_converter gt_odometry.launch.py \
 
 `tools/airlink/` 负责将 PX4 的 MAVLink 数据交给 `mavlink-routerd`，并以 UDP server 方式等待 QGroundControl 主动连接。
 
-请先确认系统中已安装 `mavlink-router`：
+请先通过仓库子模块源码安装 `mavlink-router`：
 
 ```bash
-sudo apt update
-sudo apt install -y mavlink-router
+git submodule update --init --recursive third_party/mavlink-router
+./tools/airlink/install_mavlink_router.sh
 ```
 
 随后执行以下脚本，交互式选择链路配置并写入 `/etc/mavlink-router/main.conf`：

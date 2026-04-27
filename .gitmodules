@@ -6,3 +6,6 @@
 	path = third_party/px4-ros2-interface-lib
 	url = https://github.com/Auterion/px4-ros2-interface-lib
 	branch = release/1.17
+[submodule "third_party/mavlink-router"]
+	path = third_party/mavlink-router
+	url = https://github.com/mavlink-router/mavlink-router
