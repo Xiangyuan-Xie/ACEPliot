@@ -1,9 +1,5 @@
 link_mode: udp
 
-serial:
-  device: /dev/ttyUSB0
-  baudrate: 921600
-
 px4_udp:
   bind_address: 0.0.0.0
   bind_port: 14540

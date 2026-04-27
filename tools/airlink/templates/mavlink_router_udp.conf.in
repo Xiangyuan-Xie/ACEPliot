@@ -2,10 +2,12 @@
 ReportStats=false
 
 [UdpEndpoint px4_udp_in]
+Mode=Server
 Address=@PX4_UDP_BIND_ADDRESS@
 Port=@PX4_UDP_BIND_PORT@
 
 [UdpEndpoint gcs_listen]
+# Learns the GCS source address from the first UDP packet, then sends MAVLink back there.
 Mode=Server
 Address=@GCS_BIND_ADDRESS@
 Port=@GCS_UDP_PORT@

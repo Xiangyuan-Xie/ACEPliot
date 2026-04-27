@@ -18,7 +18,7 @@ def load_module():
 
 
 class ConfigureAirlinkTests(unittest.TestCase):
-    def test_render_serial_config_uses_udp_server_for_qgc(self):
+    def test_render_serial_config_uses_udp_server_to_learn_gcs_source(self):
         module = load_module()
 
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -31,12 +31,15 @@ class ConfigureAirlinkTests(unittest.TestCase):
         self.assertIn("[UartEndpoint px4_serial]", content)
         self.assertIn("Device=/dev/ttyUSB0", content)
         self.assertIn("[UdpEndpoint gcs_listen]", content)
+        self.assertIn("# Learns the GCS source address from the first UDP packet", content)
         self.assertIn("Mode=Server", content)
         self.assertIn("Address=0.0.0.0", content)
         self.assertIn("Port=14550", content)
+        self.assertNotIn("[UdpEndpoint gcs_out]", content)
+        self.assertNotIn("Mode=Normal", content)
         self.assertNotIn("broadcast", content.lower())
 
-    def test_render_udp_config_keeps_px4_udp_bind_port(self):
+    def test_render_udp_config_keeps_px4_input_and_gcs_learning_server(self):
         module = load_module()
 
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -47,11 +50,16 @@ class ConfigureAirlinkTests(unittest.TestCase):
 
         self.assertEqual(rendered_path, output_path)
         self.assertIn("[UdpEndpoint px4_udp_in]", content)
+        self.assertIn("[UdpEndpoint px4_udp_in]\nMode=Server", content)
         self.assertIn("Address=0.0.0.0", content)
         self.assertIn("Port=14540", content)
         self.assertIn("[UdpEndpoint gcs_listen]", content)
+        self.assertIn("# Learns the GCS source address from the first UDP packet", content)
         self.assertIn("Mode=Server", content)
         self.assertIn("Port=14550", content)
+        self.assertNotIn("[UdpEndpoint gcs_out]", content)
+        self.assertNotIn("Mode=Normal", content)
+        self.assertNotIn("broadcast", content.lower())
 
     def test_serial_mode_requires_serial_device(self):
         module = load_module()

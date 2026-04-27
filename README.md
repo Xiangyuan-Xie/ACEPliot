@@ -385,7 +385,7 @@ ros2 launch px4_state_converter gt_odometry.launch.py \
 
 ## AirLink 地面站链路
 
-`tools/airlink/` 负责将 PX4 的 MAVLink 数据交给 `mavlink-routerd`，并以 UDP server 方式等待 QGroundControl 主动连接。
+`tools/airlink/` 负责将 PX4 的 MAVLink 数据交给 `mavlink-routerd`，并以 UDP server 方式等待 QGroundControl 主动连接。GCS 先向机载电脑监听端口发出 UDP 包后，`mavlink-routerd` 会学习该源 IP/端口，并把后续 MAVLink 数据回发到这个 GCS。
 
 请先通过仓库子模块源码安装 `mavlink-router`：
 
@@ -411,7 +411,7 @@ git submodule update --init --recursive third_party/mavlink-router
 sudo journalctl -u mavlink-router -f
 ```
 
-QGroundControl 侧需要手动添加 UDP 链路，目标地址填写机载电脑 IP，端口填写 `14550`。
+QGroundControl 侧需要手动添加 UDP 链路，目标地址填写机载电脑 IP，端口填写 `14550`。不需要在 AirLink 配置里写地面站 IP；`gcs_listen` 会从 QGC 发来的第一包学习回发目标。
 
 ## 配置与默认约定
 

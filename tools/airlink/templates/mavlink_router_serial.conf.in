@@ -6,6 +6,7 @@ Device=@SERIAL_DEVICE@
 Baud=@BAUDRATE@
 
 [UdpEndpoint gcs_listen]
+# Learns the GCS source address from the first UDP packet, then sends MAVLink back there.
 Mode=Server
 Address=@GCS_BIND_ADDRESS@
 Port=@GCS_UDP_PORT@
