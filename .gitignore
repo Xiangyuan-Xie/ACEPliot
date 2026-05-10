@@ -50,6 +50,11 @@ px4_external_modes/*/weights/.gitkeep
 
 # Logs
 px4_external_modes/*/logs/
+analysis_outputs/
+
+# Python
+__pycache__/
+*.py[cod]
 
 # Codex
 .codex
