@@ -22,7 +22,6 @@ find_package(rosgraph_msgs REQUIRED)
 find_package(px4_msgs REQUIRED)
 find_package(px4_ros2_cpp REQUIRED)
 find_package(rl_base_mode REQUIRED)
-find_package(rl_mode_utils REQUIRED)
 
 include_directories(include ${Eigen3_INCLUDE_DIRS})
 
@@ -44,7 +43,6 @@ ament_target_dependencies(am_position_mode
   px4_msgs
   px4_ros2_cpp
   rl_base_mode
-  rl_mode_utils
 )
 
 add_executable(am_position_motor_node
@@ -134,7 +132,6 @@ ament_export_dependencies(
   px4_msgs
   px4_ros2_cpp
   rl_base_mode
-  rl_mode_utils
 )
 
 if(BUILD_TESTING)

@@ -17,7 +17,6 @@
 
   <depend>px4_ros2_cpp</depend>
   <depend>rl_base_mode</depend>
-  <depend>rl_mode_utils</depend>
   <depend>std_msgs</depend>
   <depend>sensor_msgs</depend>
   <depend>geometry_msgs</depend>
