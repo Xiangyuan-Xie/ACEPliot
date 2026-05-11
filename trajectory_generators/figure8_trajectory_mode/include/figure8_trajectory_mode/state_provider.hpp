@@ -10,7 +10,7 @@
 #include <px4_ros2/odometry/local_position.hpp>
 #include <rclcpp/rclcpp.hpp>
 
-#include <trajectory_generator_utils/generator.hpp>
+#include <figure8_trajectory_mode/generator.hpp>
 
 struct StateProviderConfig
 {

@@ -18,7 +18,6 @@
   <depend>nav_msgs</depend>
   <depend>px4_msgs</depend>
   <depend>px4_ros2_cpp</depend>
-  <depend>trajectory_generator_utils</depend>
 
   <exec_depend>launch</exec_depend>
   <exec_depend>launch_ros</exec_depend>

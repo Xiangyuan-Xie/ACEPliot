@@ -3,8 +3,8 @@
 #include <cmath>
 #include <limits>
 
-#include <trajectory_generator_utils/generator.hpp>
-#include <trajectory_generator_utils/offboard_conversion.hpp>
+#include <figure8_trajectory_mode/generator.hpp>
+#include <figure8_trajectory_mode/offboard_conversion.hpp>
 
 #include <px4_ros2/utils/frame_conversion.hpp>
 

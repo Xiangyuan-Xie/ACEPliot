@@ -10,8 +10,8 @@
 #include <rclcpp/rclcpp.hpp>
 
 #include <figure8_trajectory_mode/figure8_generator.hpp>
-#include <trajectory_generator_utils/offboard_conversion.hpp>
-#include <trajectory_generator_utils/state_provider.hpp>
+#include <figure8_trajectory_mode/offboard_conversion.hpp>
+#include <figure8_trajectory_mode/state_provider.hpp>
 
 #include "figure8_mode_utils.hpp"
 

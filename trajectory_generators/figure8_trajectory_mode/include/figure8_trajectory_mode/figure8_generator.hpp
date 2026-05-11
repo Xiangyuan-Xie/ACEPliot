@@ -4,7 +4,7 @@
 #include <Eigen/Dense>
 #include <nav_msgs/msg/path.hpp>
 #include <rclcpp/rclcpp.hpp>
-#include <trajectory_generator_utils/generator.hpp>
+#include <figure8_trajectory_mode/generator.hpp>
 
 #ifndef M_PI
 #define M_PI 3.14159265358979323846

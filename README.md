@@ -41,8 +41,7 @@ ACEPliot/
 │   └── am_position_mode/              # 多旋翼机械臂位置控制模式、launch、配置与模型权重
 ├── px4_state_converter/               # PX4/ROS 2 状态、里程计与 IMU 转换节点
 ├── trajectory_generators/
-│   ├── trajectory_generator_utils/    # 轨迹生成相关公共数据结构与工具
-│   └── figure8_trajectory_mode/       # 8 字轨迹位置/速度模式
+│   └── figure8_trajectory_mode/       # 8 字轨迹位置/速度模式与轨迹生成工具
 ├── tools/
 │   └── airlink/                       # AirLink 链路配置脚本与预设配置
 └── third_party/                       # px4_msgs、px4_ros2_cpp 等第三方依赖源码
@@ -270,12 +269,11 @@ ros2 launch am_position_mode real_am_position_ctbr.launch.py \
 
 ## trajectory_generators
 
-`trajectory_generators/` 当前包含两个 ROS 2 包：
+`trajectory_generators/` 当前包含一个 ROS 2 包：
 
-- `trajectory_generator_utils`
 - `figure8_trajectory_mode`
 
-其中，`trajectory_generator_utils` 提供共享的轨迹数据结构、PX4 Offboard 消息转换与状态读取工具；`figure8_trajectory_mode` 提供位置模式与速度模式两个运行入口。
+其中，`figure8_trajectory_mode` 内置共享的轨迹数据结构、PX4 Offboard 消息转换与状态读取工具，并提供位置模式与速度模式两个运行入口。
 
 ### `figure8_position_mode`
 

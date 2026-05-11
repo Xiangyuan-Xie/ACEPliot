@@ -1,4 +1,4 @@
-#include <trajectory_generator_utils/offboard_conversion.hpp>
+#include <figure8_trajectory_mode/offboard_conversion.hpp>
 
 #include <cmath>
 

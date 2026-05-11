@@ -19,12 +19,13 @@ find_package(rclcpp REQUIRED)
 find_package(nav_msgs REQUIRED)
 find_package(px4_msgs REQUIRED)
 find_package(px4_ros2_cpp REQUIRED)
-find_package(trajectory_generator_utils REQUIRED)
 
 include_directories(include ${Eigen3_INCLUDE_DIRS})
 
 add_library(figure8_trajectory_mode
   src/figure8_generator.cpp
+  src/offboard_conversion.cpp
+  src/state_provider.cpp
 )
 
 ament_target_dependencies(figure8_trajectory_mode
@@ -32,7 +33,6 @@ ament_target_dependencies(figure8_trajectory_mode
   nav_msgs
   px4_msgs
   px4_ros2_cpp
-  trajectory_generator_utils
 )
 
 target_link_libraries(figure8_trajectory_mode
@@ -48,7 +48,6 @@ ament_target_dependencies(figure8_position_mode_node
   nav_msgs
   px4_msgs
   px4_ros2_cpp
-  trajectory_generator_utils
 )
 
 target_link_libraries(figure8_position_mode_node
@@ -64,7 +63,6 @@ ament_target_dependencies(figure8_velocity_mode_node
   nav_msgs
   px4_msgs
   px4_ros2_cpp
-  trajectory_generator_utils
 )
 
 target_link_libraries(figure8_velocity_mode_node
@@ -120,7 +118,7 @@ if(BUILD_TESTING)
   )
   if(TARGET test_figure8_generator)
     target_link_libraries(test_figure8_generator figure8_trajectory_mode)
-    ament_target_dependencies(test_figure8_generator rclcpp nav_msgs trajectory_generator_utils)
+    ament_target_dependencies(test_figure8_generator rclcpp nav_msgs)
   endif()
 
   ament_add_gtest(test_figure8_mode_utils
@@ -128,7 +126,15 @@ if(BUILD_TESTING)
   )
   if(TARGET test_figure8_mode_utils)
     target_include_directories(test_figure8_mode_utils PRIVATE src)
-    ament_target_dependencies(test_figure8_mode_utils trajectory_generator_utils)
+    target_link_libraries(test_figure8_mode_utils figure8_trajectory_mode)
+  endif()
+
+  ament_add_gtest(test_offboard_conversion
+    test/test_offboard_conversion.cpp
+  )
+  if(TARGET test_offboard_conversion)
+    target_link_libraries(test_offboard_conversion figure8_trajectory_mode)
+    ament_target_dependencies(test_offboard_conversion px4_msgs px4_ros2_cpp nav_msgs)
   endif()
 endif()
 
@@ -138,7 +144,6 @@ ament_export_dependencies(
   nav_msgs
   px4_msgs
   px4_ros2_cpp
-  trajectory_generator_utils
   eigen3_cmake_module
   Eigen3
 )

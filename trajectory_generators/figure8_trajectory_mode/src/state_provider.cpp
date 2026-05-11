@@ -1,4 +1,4 @@
-#include <trajectory_generator_utils/state_provider.hpp>
+#include <figure8_trajectory_mode/state_provider.hpp>
 
 #include <cmath>
 

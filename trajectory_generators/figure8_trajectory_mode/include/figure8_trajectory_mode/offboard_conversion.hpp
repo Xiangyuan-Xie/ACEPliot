@@ -3,7 +3,7 @@
 #include <px4_msgs/msg/offboard_control_mode.hpp>
 #include <px4_msgs/msg/trajectory_setpoint.hpp>
 
-#include <trajectory_generator_utils/generator.hpp>
+#include <figure8_trajectory_mode/generator.hpp>
 
 px4_msgs::msg::OffboardControlMode makeOffboardControlMode(
   const TrajectorySample & sample,

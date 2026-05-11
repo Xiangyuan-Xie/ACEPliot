@@ -1,6 +1,6 @@
 #pragma once
 
-#include <trajectory_generator_utils/generator.hpp>
+#include <figure8_trajectory_mode/generator.hpp>
 
 // Keep mode-specific trimming local to this package so the shared generator
 // stays focused on producing the full figure-8 trajectory semantics.

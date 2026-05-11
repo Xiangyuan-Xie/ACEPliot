@@ -3,7 +3,7 @@
 #include <cmath>
 
 #include <figure8_trajectory_mode/figure8_generator.hpp>
-#include <trajectory_generator_utils/generator.hpp>
+#include <figure8_trajectory_mode/generator.hpp>
 
 TEST(Figure8TrajectoryMode, ProducesTrajectorySamplesAfterReset)
 {

@@ -52,6 +52,11 @@ px4_external_modes/*/weights/.gitkeep
 px4_external_modes/*/logs/
 analysis_outputs/
 
+# ROS 2 / colcon
+build/
+install/
+log/
+
 # Python
 __pycache__/
 *.py[cod]
