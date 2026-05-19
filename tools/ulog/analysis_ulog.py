@@ -359,11 +359,6 @@ def build_time_series_groups() -> tuple[TimeSeriesGroup, ...]:
             contents=_path_group("/am/policy/observation/arm_position", tuple(str(idx) for idx in range(5))),
         ),
         TimeSeriesGroup(
-            name="Arm Velocity",
-            origin="/am/policy/observation/arm_velocity",
-            contents=_path_group("/am/policy/observation/arm_velocity", tuple(str(idx) for idx in range(5))),
-        ),
-        TimeSeriesGroup(
             name="Previous Action",
             origin="/am/policy/observation/previous_action",
             contents=_path_group("/am/policy/observation/previous_action", tuple(str(idx) for idx in range(4))),
@@ -510,7 +505,6 @@ def build_am_blueprint():
         series_view("Angular Velocity Error Body"),
         series_view("Projected Gravity Body"),
         series_view("Arm Position"),
-        series_view("Arm Velocity"),
         series_view("Previous Action"),
         series_view("Manual Hover Activation"),
         name="AM Policy",
@@ -557,7 +551,6 @@ def _am_policy_observation_names() -> list[str]:
     names.extend(f"linear_velocity_error_body/{axis}" for axis in ("x", "y", "z"))
     names.extend(f"angular_velocity_error_body/{axis}" for axis in ("x", "y", "z"))
     names.extend(f"arm_position/{idx}" for idx in range(5))
-    names.extend(f"arm_velocity/{idx}" for idx in range(5))
     names.extend(f"previous_action/{idx}" for idx in range(4))
     return names
 

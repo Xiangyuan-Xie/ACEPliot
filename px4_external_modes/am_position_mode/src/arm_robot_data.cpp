@@ -38,14 +38,8 @@ const std::vector<float> & ArmRobotData::ArmPosition() const
   return arm_position_;
 }
 
-const std::vector<float> & ArmRobotData::ArmVelocity() const
-{
-  return arm_velocity_;
-}
-
 void ArmRobotData::armStateCallback(const sensor_msgs::msg::JointState::SharedPtr msg)
 {
-  // Cache the latest joint states for policy observations.
+  // Cache only the joint positions used by policy observations.
   arm_position_.assign(msg->position.begin(), msg->position.end());
-  arm_velocity_.assign(msg->velocity.begin(), msg->velocity.end());
 }

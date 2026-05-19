@@ -39,12 +39,6 @@ public:
    */
   const std::vector<float> & ArmPosition() const;
 
-  /**
-   * @brief Returns latest arm joint velocities.
-   * @return Arm joint velocity vector.
-   */
-  const std::vector<float> & ArmVelocity() const;
-
 private:
   /**
    * @brief Callback for arm state topic.
@@ -55,5 +49,4 @@ private:
   rclcpp::Subscription<sensor_msgs::msg::JointState>::SharedPtr
     arm_state_sub_;  ///< Arm state subscription.
   std::vector<float> arm_position_;  ///< Arm joint position cache.
-  std::vector<float> arm_velocity_;  ///< Arm joint velocity cache.
 };

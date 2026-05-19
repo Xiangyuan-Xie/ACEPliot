@@ -281,6 +281,16 @@ class AnalysisUlogTests(unittest.TestCase):
         }.items():
             self.assertEqual(module._series_name(path), expected_label)
 
+    def test_am_policy_observation_names_match_30_dim_policy(self):
+        module = load_module()
+
+        names = module._am_policy_observation_names()
+
+        self.assertEqual(len(names), 30)
+        self.assertEqual(names[21:26], [f"arm_position/{idx}" for idx in range(5)])
+        self.assertEqual(names[26:30], [f"previous_action/{idx}" for idx in range(4)])
+        self.assertFalse(any(name.startswith("arm_velocity/") for name in names))
+
     def test_scene_entity_metadata_names_actual_frame_and_body_axes(self):
         module = load_module()
 

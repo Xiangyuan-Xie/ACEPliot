@@ -25,6 +25,7 @@ namespace
 constexpr std::size_t kActionDim = 4;
 constexpr std::size_t kCoreObsDim = 21;  // pos_err_b(3) + att_err_b(9) + gravity(3) + lin_vel_err(3) + ang_vel_err(3)
 constexpr std::size_t kArmJointObsDim = 5;
+constexpr std::size_t kPolicyObsDim = kCoreObsDim + kArmJointObsDim + kActionDim;
 constexpr float kCmdZeroEps = 1e-6f;
 }  // namespace
 
@@ -158,7 +159,6 @@ void AmPositionMotorMode::getObservation(TensorMap & inputs, float dt_s)
   const Eigen::Vector3f ang_vel_err_b = base_ang_vel_cmd_b - ang_vel_b;
   const std::vector<float> empty_vec;
   const auto & arm_position = arm_data ? arm_data->ArmPosition() : empty_vec;
-  const auto & arm_velocity = arm_data ? arm_data->ArmVelocity() : empty_vec;
   const auto action_history = getActionObsBuffer().get_flattened_history();
 
   const auto append_or_zero_arm_channel =
@@ -184,11 +184,9 @@ void AmPositionMotorMode::getObservation(TensorMap & inputs, float dt_s)
 
   // Build policy observation matching training order:
   // [pos_err_b, att_err_b, projected_gravity, lin_vel_err_b, ang_vel_err_b,
-  //  servo_position, servo_velocity, action_history]
+  //  servo_position, action_history]
   std::vector<float> obs;
-  obs.reserve(
-    kCoreObsDim + arm_position.size() + arm_velocity.size() +
-    action_history.size());
+  obs.reserve(kPolicyObsDim);
 
   // 1) pos_err_b (3)
   obs.push_back(pos_err_b.x());
@@ -221,11 +219,7 @@ void AmPositionMotorMode::getObservation(TensorMap & inputs, float dt_s)
   if (!append_or_zero_arm_channel(obs, arm_position, "servo_position")) {
     return;
   }
-  // 7) servo_velocity
-  if (!append_or_zero_arm_channel(obs, arm_velocity, "servo_velocity")) {
-    return;
-  }
-  // 8) action_history
+  // 7) action_history
   if (action_history.size() != kActionDim) {
     RCLCPP_ERROR(
       node().get_logger(),
