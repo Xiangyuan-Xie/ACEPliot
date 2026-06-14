@@ -5,8 +5,10 @@ from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument
 from launch.actions import ExecuteProcess
+from launch.conditions import IfCondition
 from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
+
 
 def generate_launch_description() -> LaunchDescription:
     pkg_am_position_mode = get_package_share_directory('am_position_mode')
@@ -21,7 +23,9 @@ def generate_launch_description() -> LaunchDescription:
         model_path = os.path.join(pkg_am_position_mode, model_path)
 
     config_file_arg = DeclareLaunchArgument(
-        'config_file', default_value=config_file, description='YAML config file for real motor launch')
+        'config_file',
+        default_value=config_file,
+        description='YAML config file for real motor launch')
     model_path_arg = DeclareLaunchArgument(
         'model_path', default_value=model_path, description='ONNX Model Path')
     use_ros2_odom_arg = DeclareLaunchArgument(
@@ -34,8 +38,13 @@ def generate_launch_description() -> LaunchDescription:
         'trajectory_setpoint_topic', default_value=mode_config['trajectory_setpoint_topic'],
         description='PX4 TrajectorySetpoint topic')
     offboard_setpoint_timeout_s_arg = DeclareLaunchArgument(
-        'offboard_setpoint_timeout_s', default_value=str(mode_config.get('offboard_setpoint_timeout_s', 0.5)),
+        'offboard_setpoint_timeout_s',
+        default_value=str(mode_config.get('offboard_setpoint_timeout_s', 0.5)),
         description='Timeout for external Offboard references in seconds')
+    start_micro_xrce_agent_arg = DeclareLaunchArgument(
+        'start_micro_xrce_agent',
+        default_value='false',
+        description='Start MicroXRCEAgent udp4 -p 8888 from this launch file')
 
     position_mode_node = Node(
         package='am_position_mode',
@@ -54,6 +63,7 @@ def generate_launch_description() -> LaunchDescription:
     micro_xrce_agent_process = ExecuteProcess(
         cmd=['MicroXRCEAgent', 'udp4', '-p', '8888'],
         output='screen',
+        condition=IfCondition(LaunchConfiguration('start_micro_xrce_agent')),
     )
 
     return LaunchDescription([
@@ -63,6 +73,7 @@ def generate_launch_description() -> LaunchDescription:
         offboard_control_mode_topic_arg,
         trajectory_setpoint_topic_arg,
         offboard_setpoint_timeout_s_arg,
+        start_micro_xrce_agent_arg,
         micro_xrce_agent_process,
         position_mode_node,
     ])

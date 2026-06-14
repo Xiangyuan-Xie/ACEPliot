@@ -3,6 +3,7 @@
 from launch import LaunchDescription
 from launch_ros.actions import Node
 from launch.actions import DeclareLaunchArgument
+from launch.conditions import IfCondition
 from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
 from ament_index_python.packages import get_package_share_directory
 from launch.actions import ExecuteProcess
@@ -16,6 +17,11 @@ def generate_launch_description():
         'config_file',
         default_value='nokov_mocap_config.yaml',
         description='Determine which external odometry source to publish to PX4'
+    )
+    start_micro_xrce_agent_arg = DeclareLaunchArgument(
+        'start_micro_xrce_agent',
+        default_value='false',
+        description='Start MicroXRCEAgent udp4 -p 8888 from this launch file'
     )
 
     # Launch the generic odometry node
@@ -35,10 +41,12 @@ def generate_launch_description():
     # PX4 and ROS2 communication middleware
     micro_xrce_agent_process = ExecuteProcess(
         cmd=['MicroXRCEAgent', 'udp4', '-p', '8888'],
+        condition=IfCondition(LaunchConfiguration('start_micro_xrce_agent')),
         # output='screen',
     )
     return LaunchDescription([
         config_file_arg,
+        start_micro_xrce_agent_arg,
 
         micro_xrce_agent_process,
         generic_odometry_node,
