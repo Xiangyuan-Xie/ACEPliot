@@ -23,9 +23,11 @@
 namespace
 {
 constexpr std::size_t kActionDim = 4;
-constexpr std::size_t kCoreObsDim = 21;  // pos_err_b(3) + att_err_b(9) + gravity(3) + lin_vel_err(3) + ang_vel_err(3)
-constexpr std::size_t kArmJointObsDim = 5;
+// pos_err_b(3) + yaw_err_b(4) + gravity(3) + lin_vel_err(3) + ang_vel_err(3)
+constexpr std::size_t kCoreObsDim = 16;
+constexpr std::size_t kArmJointObsDim = 4;
 constexpr std::size_t kPolicyObsDim = kCoreObsDim + kArmJointObsDim + kActionDim;
+static_assert(kPolicyObsDim == 24);
 constexpr float kCmdZeroEps = 1e-6f;
 }  // namespace
 
@@ -132,28 +134,14 @@ void AmPositionMotorMode::getObservation(TensorMap & inputs, float dt_s)
     pos_err_b.z() = 0.0f;
   }
 
-  // --- att_err_b (9): per-axis angular gating on roll/pitch/yaw errors ---
-  Eigen::Matrix3f rot_matrix = Eigen::Matrix3f::Identity();
-  auto [_t_unused, att_err_quat] =
-    subtract_frame_transforms(root_pos_w, root_quat_w, root_pos_w, cmd_ref.desired_quat_w);
-  auto [roll_err, pitch_err, yaw_err] = euler_xyz_from_quat(att_err_quat);
-
-  roll_err = wrapToPi(roll_err);
-  pitch_err = wrapToPi(pitch_err);
-  yaw_err = wrapToPi(yaw_err);
-
-  if (cmd_ref.ang_cmd_active[0]) {
-    roll_err = 0.0f;
-  }
-  if (cmd_ref.ang_cmd_active[1]) {
-    pitch_err = 0.0f;
-  }
+  // --- yaw_err_b (4): yaw-gated planar rotation matrix ---
+  const float desired_yaw_w = std::get<2>(euler_xyz_from_quat(cmd_ref.desired_quat_w));
+  float yaw_err = wrapToPi(desired_yaw_w - robotData()->HeadingW());
   if (cmd_ref.ang_cmd_active[2]) {
     yaw_err = 0.0f;
   }
-
-  const Eigen::Quaternionf gated_att_err = quat_from_euler_xyz(roll_err, pitch_err, yaw_err);
-  rot_matrix = rotation_matrix_from_quat(gated_att_err);
+  const float cos_yaw = std::cos(yaw_err);
+  const float sin_yaw = std::sin(yaw_err);
 
   const Eigen::Vector3f lin_vel_err_b = base_lin_vel_cmd_b - lin_vel_b;
   const Eigen::Vector3f ang_vel_err_b = base_ang_vel_cmd_b - ang_vel_b;
@@ -183,7 +171,7 @@ void AmPositionMotorMode::getObservation(TensorMap & inputs, float dt_s)
     };
 
   // Build policy observation matching training order:
-  // [pos_err_b, att_err_b, projected_gravity, lin_vel_err_b, ang_vel_err_b,
+  // [pos_err_b, yaw_err_b, projected_gravity, lin_vel_err_b, ang_vel_err_b,
   //  servo_position, action_history]
   std::vector<float> obs;
   obs.reserve(kPolicyObsDim);
@@ -193,12 +181,11 @@ void AmPositionMotorMode::getObservation(TensorMap & inputs, float dt_s)
   obs.push_back(pos_err_b.y());
   obs.push_back(pos_err_b.z());
 
-  // 2) att_err_b (9) — flattened rotation matrix, row-major
-  for (int r = 0; r < 3; ++r) {
-    for (int c = 0; c < 3; ++c) {
-      obs.push_back(rot_matrix(r, c));
-    }
-  }
+  // 2) yaw_err_b (4) - flattened 2x2 rotation matrix, row-major
+  obs.push_back(cos_yaw);
+  obs.push_back(-sin_yaw);
+  obs.push_back(sin_yaw);
+  obs.push_back(cos_yaw);
 
   // 3) projected_gravity (3)
   obs.push_back(projected_gravity.x());
@@ -261,17 +248,31 @@ void AmPositionMotorMode::applyAction(const TensorMap & action, float dt_s)
     return;
   }
 
-  // Update action history and RNN state for next-cycle observation.
   const auto & out_vec = std::get<std::vector<float>>(it->second);
-  getActionObsBuffer().insert(out_vec);
-  rnnState().updateFromOutput(action);
-  std::vector<float> mapped_vec;
-  mapped_vec.reserve(out_vec.size());
-  for (const float raw_value : out_vec) {
-    // Apply sigmoid(2x) while keeping motor command domain in [0, 1].
-    const float mapped = 1.0f / (1.0f + std::exp(-2.0f * raw_value));
-    mapped_vec.push_back(std::clamp(mapped, 0.0f, 1.0f));
+  if (out_vec.size() != kActionDim) {
+    RCLCPP_ERROR(
+      node().get_logger(),
+      "Policy action size %zu does not match expected motor action dimension %zu.",
+      out_vec.size(),
+      kActionDim);
+    return;
   }
+  const bool actions_finite = std::all_of(
+    out_vec.begin(), out_vec.end(), [](float value) {return std::isfinite(value);});
+  if (!actions_finite) {
+    RCLCPP_ERROR(node().get_logger(), "Policy produced a non-finite motor action.");
+    return;
+  }
+
+  std::vector<float> applied_vec(out_vec);
+  for (float & value : applied_vec) {
+    value = std::clamp(value, 0.0f, 1.0f);
+  }
+
+  // The exported Beta-policy mean is already normalized to [0, 1]. Use the
+  // applied command for both motor output and the next observation.
+  getActionObsBuffer().insert(applied_vec);
+  rnnState().updateFromOutput(action);
 
   // Map normalized policy output to motor channels and keep remaining channels at zero.
   using MotorCommands = Eigen::Matrix<
@@ -279,9 +280,8 @@ void AmPositionMotorMode::applyAction(const TensorMap & action, float dt_s)
     px4_ros2::DirectActuatorsSetpointType::kMaxNumMotors,
     1>;
   MotorCommands motor_commands = MotorCommands::Zero();
-  const size_t max_copy = std::min(mapped_vec.size(), kActionDim);
-  for (size_t i = 0; i < max_copy; ++i) {
-    motor_commands[static_cast<int>(i)] = mapped_vec[i];
+  for (std::size_t i = 0; i < kActionDim; ++i) {
+    motor_commands[static_cast<int>(i)] = applied_vec[i];
   }
 
   motor_setpoint_->updateMotors(motor_commands);

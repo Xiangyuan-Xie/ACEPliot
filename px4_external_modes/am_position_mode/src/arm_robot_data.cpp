@@ -13,6 +13,11 @@
 #include <arm_robot_data.hpp>
 #include <functional>
 
+namespace
+{
+constexpr std::size_t kPolicyArmJointCount = 4;
+}
+
 ArmRobotData::ArmRobotData(px4_ros2::ModeBase & mode_base)
 : RobotData(mode_base)
 {
@@ -40,6 +45,13 @@ const std::vector<float> & ArmRobotData::ArmPosition() const
 
 void ArmRobotData::armStateCallback(const sensor_msgs::msg::JointState::SharedPtr msg)
 {
-  // Cache only the joint positions used by policy observations.
-  arm_position_.assign(msg->position.begin(), msg->position.end());
+  if (msg->position.size() < kPolicyArmJointCount) {
+    arm_position_.clear();
+    return;
+  }
+
+  // The gripper remains in JointState for compatibility but is not a policy input.
+  arm_position_.assign(
+    msg->position.begin(),
+    msg->position.begin() + static_cast<std::ptrdiff_t>(kPolicyArmJointCount));
 }
