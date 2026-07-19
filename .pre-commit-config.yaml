@@ -1,9 +1,13 @@
+exclude: ^third_party/acados_vendor/vendor/acados/
+
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v6.0.0
     hooks:
       - id: trailing-whitespace
+        exclude: ^px4_external_modes/flying_hand_(quadrotor|fully_actuated)_mode/generated/
       - id: end-of-file-fixer
+        exclude: ^px4_external_modes/flying_hand_(quadrotor|fully_actuated)_mode/generated/
       - id: check-yaml
       - id: check-added-large-files
 
@@ -13,10 +17,12 @@ repos:
       - id: cppcheck
         name: cppcheck
         description: Run cppcheck for C++ static analysis (finds bugs, memory leaks).
+        exclude: ^px4_external_modes/(flying_hand_control_common/test|flying_hand_(quadrotor|fully_actuated)_mode/(generated|test))/
         args: ["--enable=warning,performance,portability", "--error-exitcode=1", "--suppress=missingIncludeSystem"]
       - id: cpplint
         name: cpplint
         description: Check C++ code against the Google C++ Style Guide.
+        exclude: ^px4_external_modes/flying_hand_(quadrotor|fully_actuated)_mode/generated/
         args:
           [
             "--filter=-legal/copyright,-build/c++11,-build/include_order,-build/include_what_you_use,-build/namespaces,-runtime/references,-runtime/string,-whitespace/blank_line,-whitespace/braces,-whitespace/comments,-whitespace/indent,-whitespace/line_length,-whitespace/parens",
@@ -31,6 +37,7 @@ repos:
         entry: ament_uncrustify
         language: system
         files: \.(c|cc|cxx|cpp|frag|glsl|h|hpp|hxx|ih|ispc|ipp|java|js|m|proto|vert)$
+        exclude: ^px4_external_modes/flying_hand_(quadrotor|fully_actuated)_mode/generated/
         args: ["--reformat"]
 
   - repo: local
