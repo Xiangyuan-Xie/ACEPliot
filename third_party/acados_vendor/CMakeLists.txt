@@ -1,0 +1,102 @@
+cmake_minimum_required(VERSION 3.16)
+project(acados_vendor)
+
+find_package(ament_cmake REQUIRED)
+find_package(Git REQUIRED)
+include(ExternalProject)
+
+set(ACADOS_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/vendor/acados")
+if(NOT EXISTS "${ACADOS_SOURCE_DIR}/CMakeLists.txt")
+  message(FATAL_ERROR "Initialize the acados_vendor/vendor/acados submodule before building")
+endif()
+
+set(ACADOS_EXPECTED_REVISION "59d93e17d2985fdd73fc58b8a83ed8f83a024171")
+execute_process(
+  COMMAND ${GIT_EXECUTABLE} rev-parse HEAD
+  WORKING_DIRECTORY "${ACADOS_SOURCE_DIR}"
+  OUTPUT_VARIABLE ACADOS_REVISION
+  OUTPUT_STRIP_TRAILING_WHITESPACE
+  COMMAND_ERROR_IS_FATAL ANY
+)
+if(NOT ACADOS_REVISION STREQUAL ACADOS_EXPECTED_REVISION)
+  message(FATAL_ERROR
+    "acados revision ${ACADOS_REVISION} does not match pinned ${ACADOS_EXPECTED_REVISION}")
+endif()
+
+execute_process(
+  COMMAND ${GIT_EXECUTABLE} status --porcelain --untracked-files=all --ignore-submodules=none
+  WORKING_DIRECTORY "${ACADOS_SOURCE_DIR}"
+  OUTPUT_VARIABLE ACADOS_STATUS
+  OUTPUT_STRIP_TRAILING_WHITESPACE
+  COMMAND_ERROR_IS_FATAL ANY
+)
+if(NOT ACADOS_STATUS STREQUAL "")
+  message(FATAL_ERROR "Pinned acados source tree is dirty:\n${ACADOS_STATUS}")
+endif()
+
+execute_process(
+  COMMAND ${GIT_EXECUTABLE} submodule status --recursive
+  WORKING_DIRECTORY "${ACADOS_SOURCE_DIR}"
+  OUTPUT_VARIABLE ACADOS_SUBMODULE_STATUS
+  OUTPUT_STRIP_TRAILING_WHITESPACE
+  COMMAND_ERROR_IS_FATAL ANY
+)
+string(REGEX MATCH "(^|\n)[-+U]" ACADOS_BAD_SUBMODULE "${ACADOS_SUBMODULE_STATUS}")
+if(ACADOS_BAD_SUBMODULE)
+  message(FATAL_ERROR
+    "Initialize every pinned acados submodule at its recorded revision:\n"
+    "${ACADOS_SUBMODULE_STATUS}")
+endif()
+
+if(CMAKE_SYSTEM_PROCESSOR MATCHES "^(aarch64|arm64)$")
+  set(ACADOS_BLASFEO_TARGET "ARMV8A_ARM_CORTEX_A57")
+elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "^(x86_64|AMD64|amd64)$")
+  set(ACADOS_BLASFEO_TARGET "X64_AUTOMATIC")
+else()
+  set(ACADOS_BLASFEO_TARGET "GENERIC")
+endif()
+
+set(ACADOS_BUILD_SOURCE_DIR "${CMAKE_CURRENT_BINARY_DIR}/acados-source")
+set(ACADOS_INSTALL_PREFIX "/opt/acados/0.5.5")
+set(ACADOS_STAGE_DIR "${CMAKE_CURRENT_BINARY_DIR}/acados-stage")
+set(ACADOS_PRIVATE_PREFIX "${ACADOS_STAGE_DIR}${ACADOS_INSTALL_PREFIX}")
+
+externalproject_add(acados_external
+  SOURCE_DIR "${ACADOS_BUILD_SOURCE_DIR}"
+  BINARY_DIR "${CMAKE_CURRENT_BINARY_DIR}/acados-v0.5.5-isolated"
+  DOWNLOAD_COMMAND
+    ${CMAKE_COMMAND} -E rm -rf "${ACADOS_BUILD_SOURCE_DIR}"
+    COMMAND ${CMAKE_COMMAND} -E make_directory "${ACADOS_BUILD_SOURCE_DIR}"
+    COMMAND cp -a "${ACADOS_SOURCE_DIR}/." "${ACADOS_BUILD_SOURCE_DIR}"
+  UPDATE_COMMAND ""
+  CMAKE_ARGS
+    -DCMAKE_BUILD_TYPE=Release
+    -DCMAKE_INSTALL_PREFIX=${ACADOS_INSTALL_PREFIX}
+    -DCMAKE_C_COMPILER=${CMAKE_C_COMPILER}
+    -DCMAKE_CXX_COMPILER=${CMAKE_CXX_COMPILER}
+    -DBLASFEO_TARGET=${ACADOS_BLASFEO_TARGET}
+    -DBUILD_SHARED_LIBS=ON
+    -DACADOS_EXAMPLES=OFF
+    -DACADOS_UNIT_TESTS=OFF
+    -DACADOS_WITH_OPENMP=OFF
+    -DACADOS_WITH_QPOASES=OFF
+  BUILD_COMMAND ${CMAKE_COMMAND} --build <BINARY_DIR> --parallel
+  INSTALL_COMMAND
+    ${CMAKE_COMMAND} -E rm -rf "${ACADOS_STAGE_DIR}"
+    COMMAND ${CMAKE_COMMAND} -E make_directory "${ACADOS_STAGE_DIR}"
+    COMMAND ${CMAKE_COMMAND} -E env "DESTDIR=${ACADOS_STAGE_DIR}"
+      ${CMAKE_COMMAND} --build <BINARY_DIR> --target install
+  USES_TERMINAL_BUILD TRUE
+  USES_TERMINAL_INSTALL TRUE
+)
+
+install(DIRECTORY "${ACADOS_PRIVATE_PREFIX}/include/" DESTINATION include)
+install(DIRECTORY "${ACADOS_PRIVATE_PREFIX}/lib/" DESTINATION lib)
+
+ament_export_include_directories(
+  include
+  include/blasfeo/include
+  include/hpipm/include
+)
+ament_export_libraries(acados hpipm blasfeo)
+ament_package()

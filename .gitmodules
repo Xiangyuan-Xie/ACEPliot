@@ -9,3 +9,6 @@
 [submodule "third_party/mavlink-router"]
 	path = third_party/mavlink-router
 	url = https://github.com/mavlink-router/mavlink-router
+[submodule "third_party/acados_vendor/vendor/acados"]
+	path = third_party/acados_vendor/vendor/acados
+	url = https://github.com/acados/acados.git
