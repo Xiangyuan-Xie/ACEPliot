@@ -18,6 +18,8 @@ Core capabilities:
 - Shared RL runtime code for robot state, observations, ONNX Runtime inference,
   RNN state, and flight logging.
 - Motor and CTBR position-control entries for the aerial-manipulator workflow.
+- Separate Flying Hand quadrotor and calibrated fully actuated whole-body
+  MPC/L1 external modes.
 - PX4 / ROS 2 state, IMU, and odometry conversion nodes.
 - Figure-8 Offboard reference generation.
 - AirLink / MAVLink ground-station routing utilities.
@@ -44,14 +46,32 @@ dependency is missing.
 - `px4_external_modes/am_position_mode/` - aerial-manipulator position-control
   mode, including Motor and CTBR executables, launch files, YAML configs, tests,
   and default policy-weight path conventions.
+- `px4_external_modes/flying_hand_control_common/` - shared Flying Hand PX4
+  external-mode lifecycle, ACETele handshake, wrench publication, fault
+  handling, and diagnostics. It has no executable node.
+- `px4_external_modes/flying_hand_quadrotor_mode/` - underactuated x500
+  quadrotor MPC/L1 adaptation and its generated 17-state, 8-input solver.
+- `px4_external_modes/flying_hand_fully_actuated_mode/` - calibrated tilted-hex
+  6D wrench controller, allocation model, paper-style L1 layer, DH kinematics,
+  and generated 17-state, 10-input solver. Its checked-in default is shadow
+  only.
 - `px4_state_converter/` - bidirectional PX4 / ROS 2 bridge for visual
   odometry, ground-truth odometry, IMU, and related frame conversions.
 - `trajectory_generators/figure8_trajectory_mode/` - figure-8 trajectory
   generation, PX4 Offboard reference conversion, and testable trajectory logic.
+- `trajectory_generators/px4_velocity_commander/` - YAML-driven PX4 Offboard
+  velocity commands with pose-difference velocity feedback. Simulation uses
+  ACESim odometry; real-flight defaults to Nokov `PoseStamped`.
+- `trajectory_generators/arm_trajectory_commander/` - leader-style arm
+  trajectory command publishing.
+- `trajectory_generators/aerial_manipulator_commander/` - launch-only
+  composition for simultaneous PX4 velocity and arm trajectory commands.
 - `tools/airlink/` - AirLink configuration scripts, scenario YAML files, and
   `mavlink-routerd` templates for real-flight ground-station links.
 - `third_party/` - vendored or submodule-based dependencies such as `px4_msgs`,
-  the PX4 ROS 2 interface library, `onnxruntime_vendor`, and `mavlink-router`.
+  the PX4 ROS 2 interface library, `onnxruntime_vendor`, `mavlink-router`, and
+  `acados_vendor`. The latter builds its pinned recursive ACADOS submodule into
+  the current colcon install prefix.
 - `tests/` - repository-level Python tests for cross-package behavior that does
   not belong to a single ROS package.
 
@@ -147,6 +167,51 @@ ros2 launch figure8_trajectory_mode figure8_position_mode.launch.py
 ros2 launch figure8_trajectory_mode figure8_velocity_mode.launch.py
 ```
 
+Run scripted commander references:
+
+```bash
+ros2 launch px4_velocity_commander sim_px4_velocity_commander.launch.py
+ros2 launch px4_velocity_commander real_px4_velocity_commander.launch.py
+ros2 launch arm_trajectory_commander sim_arm_trajectory_commander.launch.py
+ros2 launch arm_trajectory_commander real_arm_trajectory_commander.launch.py
+ros2 launch aerial_manipulator_commander sim_aerial_manipulator_commander.launch.py
+ros2 launch aerial_manipulator_commander real_aerial_manipulator_commander.launch.py
+```
+
+Run Flying Hand profiles:
+
+```bash
+ros2 launch flying_hand_quadrotor_mode sim_flying_hand_quadrotor.launch.py
+ros2 launch flying_hand_quadrotor_mode real_flying_hand_quadrotor_shadow.launch.py
+ros2 launch flying_hand_fully_actuated_mode \
+  real_flying_hand_fully_actuated_shadow.launch.py
+```
+
+The fully actuated closed-loop launch intentionally has no default config. Do
+not invent calibration values or bypass its `closed_loop` plus
+`calibration_confirmed` gate. Rotor geometry, axes, moment ratios, thrust
+curves, actuator ordering, and PX4 `CA_ROTOR*` settings form one calibration
+contract.
+
+Prefer the explicit `sim_*` or `real_*` entry points in new docs and tests.
+Simulation configs set `use_sim_time: true` and default to ACESim bridge topics:
+`/acesim/clock` for time and `/acesim/vehicle/odometry` for vehicle pose
+feedback. The commander timers are steady timers that sample the configured
+simulation clock when it is active. Keep clock fallback policy out of
+`arm_trajectory_commander` YAML unless a test explicitly needs to exercise it;
+ACETele mock/follower runs may not publish a clock.
+For `arm_trajectory_commander`, keep handshake internals out of YAML configs:
+sim behavior is relaxed by `use_sim_time: true`, while real behavior remains
+strict with `use_sim_time: false`.
+
+ACEPliot commander sim launch files do not start ACESim. For integrated
+simulation, start ACESim separately, for example:
+
+```bash
+ros2 launch acesim_ros2 linux.launch.py ace_follower:=auto
+ros2 launch aerial_manipulator_commander sim_aerial_manipulator_commander.launch.py
+```
+
 Configure the MAVLink ground-station link:
 
 ```bash
@@ -179,6 +244,17 @@ pre-commit run --all-files
   upstream dependency synchronization.
 - Treat `third_party/px4_msgs/` and the PX4 ROS 2 interface library as interface
   material. Message, service, or interface changes require rebuild notes.
+- Keep Flying Hand frame and allocation conventions explicit: PX4 vehicle and
+  wrench state is NED/FRD, arm kinematics are defined by each controller, and
+  full-actuation rotor arrays are rotor-major. Reject rank-deficient or poorly
+  conditioned allocation matrices rather than silently regularizing them.
+- Generated ACADOS C code is checked-in deployment input. Change its generator
+  and regenerate from the pinned `acados_vendor` source; do not hand-edit only
+  the generated files. Keep solver symbols mode-specific so both modes can be
+  linked in one workspace.
+- Do not describe `flying_hand_fully_actuated_mode` as an official source port
+  or hardware-validated controller. The public papers do not supply the full
+  MPC/MuJoCo implementation or exact environment/self-collision constraints.
 - Do not commit large model weights, flight logs, rosbag files, generated build
   products, or personal IDE / agent configuration unless the repository
   convention explicitly allows it.
@@ -240,12 +316,26 @@ colcon build --packages-select rl_base_mode
 colcon build --packages-select am_position_mode
 colcon build --packages-select px4_state_converter
 colcon build --packages-select figure8_trajectory_mode
+colcon build --packages-select px4_velocity_commander
+colcon build --packages-select arm_trajectory_commander
+colcon build --packages-select aerial_manipulator_commander
+colcon build --packages-select flying_hand_control_common
+colcon build --packages-select flying_hand_quadrotor_mode
+colcon build --packages-select flying_hand_fully_actuated_mode
 ```
 
 ```bash
 colcon test --packages-select am_position_mode --event-handlers console_direct+
 colcon test --packages-select px4_state_converter --event-handlers console_direct+
 colcon test --packages-select figure8_trajectory_mode --event-handlers console_direct+
+colcon test --packages-select px4_velocity_commander --event-handlers console_direct+
+colcon test --packages-select arm_trajectory_commander --event-handlers console_direct+
+colcon test --packages-select aerial_manipulator_commander --event-handlers console_direct+
+colcon test --packages-select flying_hand_control_common --event-handlers console_direct+
+colcon test --packages-select flying_hand_quadrotor_mode --event-handlers console_direct+
+colcon test --packages-select flying_hand_fully_actuated_mode --event-handlers console_direct+
+python3 -m unittest tools.launch.test_commander_launch
+python3 -m unittest tools.launch.test_flying_hand_mode_launch
 colcon test-result --verbose
 ```
 
