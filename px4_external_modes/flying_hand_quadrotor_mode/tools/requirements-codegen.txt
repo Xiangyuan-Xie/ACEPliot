@@ -1,0 +1,9 @@
+casadi==3.7.2
+cmeel-urdfdom==4.0.1
+cmeel-tinyxml2==10.0.0
+Cython==3.1.2
+Deprecated==1.2.18
+matplotlib==3.10.3
+numpy==2.2.6
+pin==3.8.0
+scipy==1.15.3
