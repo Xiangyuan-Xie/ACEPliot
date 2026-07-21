@@ -1,0 +1,17 @@
+am_ee_pose_commander:
+  ros__parameters:
+    target_frame_id: world
+    target_preview_topic: /am_ee_pose/trajectory_preview
+    current_ee_pose_topic: /am_ee_pose/current_ee_pose
+    target_timeout_s: 0.2
+
+    vehicle_odometry_topic: /fmu/out/vehicle_odometry
+    offboard_control_mode_topic: /fmu/in/offboard_control_mode
+    trajectory_setpoint_topic: /fmu/in/trajectory_setpoint
+
+    arm_state_topic: /ace_follower/arm/state
+    gripper_state_topic: /ace_follower/gripper/state
+    follower_sync_status_topic: /ace_follower/arm/sync_status
+    arm_command_topic: /ace_leader/arm/command
+    gripper_command_topic: /ace_leader/gripper/command
+    leader_sync_mode_topic: /ace_leader/arm/sync_mode
