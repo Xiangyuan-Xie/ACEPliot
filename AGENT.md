@@ -1,87 +1,74 @@
 # ACEPliot Agent Guide
 
-This guide is for coding agents and maintainers working in the ACEPliot
-repository. It summarizes the project shape, common commands, and local
-conventions so a new agent can make focused changes without rediscovering the
-basics.
+This guide defines repository-level expectations for coding agents and
+maintainers. Keep it environment-independent: project rules must not depend on a
+username, home directory, IDE session, timezone, or one machine's installed
+packages.
 
 ## Project Snapshot
 
-ACEPliot is a ROS 2 / PX4 control workspace for aerial manipulation research,
-simulation validation, and real-flight deployment. The codebase is organized as
-a colcon workspace and should remain a set of ROS packages, not a standalone
-CMake project or loose script collection.
+ACEPliot is a ROS 2 Humble colcon workspace for PX4 aerial-manipulator control,
+simulation, and real-flight deployment. The target baseline is Ubuntu 22.04,
+PX4 v1.14 or newer, C++17, and Python 3.10.
 
-Core capabilities:
+The control architecture has five layers:
 
-- PX4 External Flight Modes for reinforcement-learning control.
-- Shared RL runtime code for robot state, observations, ONNX Runtime inference,
-  RNN state, and flight logging.
-- Motor and CTBR position-control entries for the aerial-manipulator workflow.
-- Separate Flying Hand quadrotor and calibrated fully actuated whole-body
-  MPC/L1 external modes.
-- PX4 / ROS 2 state, IMU, and odometry conversion nodes.
-- Figure-8 Offboard reference generation.
-- AirLink / MAVLink ground-station routing utilities.
-- Optional uXRCE-DDS communication through a manually managed
-  `MicroXRCEAgent`.
+1. `libraries/` contains reusable code without ROS node ownership.
+2. `px4_external_modes/` contains controllers that own a PX4 External Mode
+   lifecycle.
+3. `commanders/` contains ordinary ROS 2 deployment nodes for upper policies.
+4. `trajectory_generators/` contains composable reference sources.
+5. `benchmarks/` contains repeatable Python workloads, metrics, and reports.
 
-Target baseline:
+Do not blur these boundaries. A commander must not become a `NodeWithMode`, a
+trajectory source must not start PX4 or ACESim, a benchmark must not own the
+simulator lifecycle, and a reusable policy library must not declare ROS
+parameters.
 
-- Ubuntu 22.04.
-- ROS 2 Humble.
-- PX4 v1.14 or newer.
-- C++17.
-
-These are project-level target assumptions, not proof that the current machine
-has every dependency installed. Before reporting a code issue, verify whether
-the local ROS, PX4, `MicroXRCEAgent`, `mavlink-routerd`, submodule, or system
-dependency is missing.
+Real-flight dependencies are not implied by a successful source checkout.
+Verify ROS, PX4 interfaces, submodules, ONNX Runtime, ACADOS,
+`MicroXRCEAgent`, and `mavlink-routerd` before treating an environment failure
+as a code defect.
 
 ## Repository Map
 
-- `px4_external_modes/rl_base_mode/` - shared PX4 external-mode runtime for RL
-  controllers, including state containers, ONNX Runtime inference helpers,
-  observation history, RNN state, and logging.
-- `px4_external_modes/am_position_mode/` - aerial-manipulator position-control
-  mode, including Motor and CTBR executables, launch files, YAML configs, tests,
-  and default policy-weight path conventions.
-- `px4_external_modes/flying_hand_control_common/` - shared Flying Hand PX4
-  external-mode lifecycle, ACETele handshake, wrench publication, fault
-  handling, and diagnostics. It has no executable node.
-- `px4_external_modes/flying_hand_quadrotor_mode/` - underactuated x500
-  quadrotor MPC/L1 adaptation and its generated 17-state, 8-input solver.
-- `px4_external_modes/flying_hand_fully_actuated_mode/` - calibrated tilted-hex
-  6D wrench controller, allocation model, paper-style L1 layer, DH kinematics,
-  and generated 17-state, 10-input solver. Its checked-in default is shadow
-  only.
-- `px4_state_converter/` - bidirectional PX4 / ROS 2 bridge for visual
-  odometry, ground-truth odometry, IMU, and related frame conversions.
-- `trajectory_generators/figure8_trajectory_mode/` - figure-8 trajectory
-  generation, PX4 Offboard reference conversion, and testable trajectory logic.
-- `trajectory_generators/px4_velocity_commander/` - YAML-driven PX4 Offboard
-  velocity commands with pose-difference velocity feedback. Simulation uses
-  ACESim odometry; real-flight defaults to Nokov `PoseStamped`.
-- `trajectory_generators/arm_trajectory_commander/` - leader-style arm
-  trajectory command publishing.
-- `trajectory_generators/aerial_manipulator_commander/` - launch-only
-  composition for simultaneous PX4 velocity and arm trajectory commands.
-- `tools/airlink/` - AirLink configuration scripts, scenario YAML files, and
-  `mavlink-routerd` templates for real-flight ground-station links.
-- `third_party/` - vendored or submodule-based dependencies such as `px4_msgs`,
-  the PX4 ROS 2 interface library, `onnxruntime_vendor`, `mavlink-router`, and
-  `acados_vendor`. The latter builds its pinned recursive ACADOS submodule into
-  the current colcon install prefix.
-- `tests/` - repository-level Python tests for cross-package behavior that does
-  not belong to a single ROS package.
+- `libraries/policy_inference/` - ROS-free ONNX policy API, tensor maps, and
+  optional recurrent-state handling. Callers own parameters and logging.
+- `px4_external_modes/am_position_mode/` - the single `AM Position` PX4 mode.
+  It owns vehicle state, observations, inference, RNN state, flight logging,
+  Offboard references, and rates/thrust publication.
+- `px4_external_modes/flying_hand_mode/` - one ROS package containing shared
+  runtime plus isolated quadrotor and fully-actuated controllers, generated
+  ACADOS solvers, launch files, configs, and tests.
+- `commanders/am_ee_pose_commander/` - ACELab AM EE Pose upper-policy
+  deployment. It publishes references for PX4 AM Offboard and drives the
+  ACETele arm handshake; it is not an External Mode.
+- `trajectory_generators/figure8_trajectory/` - Python PX4 position Figure-8
+  references and AM EE Pose five-frame previews.
+- `benchmarks/benchmark_reporting/` - Python alignment, metrics, CSV/JSON
+  serialization, and headless PNG plots.
+- `benchmarks/velocity_tracking_benchmark/` - scripted PX4 Offboard velocity
+  tracking workload.
+- `benchmarks/arm_motion_benchmark/` - 100 Hz ACETele arm motion workload whose
+  report covers only aerial-base position drift.
+- `benchmarks/aerial_manipulation_benchmark/` - launch-only composition of the
+  velocity and arm-motion workloads.
+- `benchmarks/figure8_tracking_benchmark/` - PX4 and EE Figure-8 tracking
+  launch composition.
+- `px4_state_converter/` - PX4 / ROS 2 state, IMU, visual odometry, and ground
+  truth conversion.
+- `tools/airlink/` - AirLink and `mavlink-routerd` configuration.
+- `tests/` - repository-level Python tests for package layout and launch
+  contracts. Package-local tests stay in each package's `test/` directory.
+- `third_party/` - submodules and vendor packages such as `px4_msgs`, the PX4
+  ROS 2 interface library, ONNX Runtime, ACADOS, and mavlink-router.
 
-Generated output and local state are not source of truth. Avoid relying on
-`build/`, `install/`, `log/`, IDE metadata, agent metadata, analysis output, or
-local cache files when changing project behavior.
+Generated and local output is not source of truth. Do not base behavior on
+`build/`, `install/`, `log/`, IDE metadata, agent state, or local caches.
 
 ## Setup
 
-Initialize submodules and install ROS dependencies from the workspace root:
+Initialize dependencies from the workspace root:
 
 ```bash
 cd <ACEPliot_ROOT>
@@ -90,276 +77,274 @@ source /opt/ros/humble/setup.bash
 rosdep install --from-paths . --ignore-src -r -y
 ```
 
-Build the whole workspace:
+Build and source the workspace:
 
 ```bash
-cd <ACEPliot_ROOT>
 source /opt/ros/humble/setup.bash
 colcon build
 source install/setup.bash
 ```
 
-Build a focused package when the change is local to one package:
-
-```bash
-source /opt/ros/humble/setup.bash
-colcon build --packages-select am_position_mode
-```
-
-AirLink tooling depends on `mavlink-routerd`; install it through the repository
-script:
+Install the repository-pinned MAVLink router when AirLink tooling is needed:
 
 ```bash
 git submodule update --init --recursive third_party/mavlink-router
 ./tools/airlink/install_mavlink_router.sh
 ```
 
-Real PX4 / ROS 2 communication requires a PX4-side `uxrce_dds_client` and a
-companion-computer-side `MicroXRCEAgent`. The true real-flight launch files
-default to not starting the agent automatically. Prefer running one agent in a
-separate terminal:
+PX4-side `uxrce_dds_client` and companion-side `MicroXRCEAgent` are distinct.
+Real launch files default to not starting the agent. Prefer one manually managed
+instance:
 
 ```bash
 MicroXRCEAgent udp4 -p 8888
 ```
 
-Only use `start_micro_xrce_agent:=true` when explicitly restoring the older
-launch-owned agent lifecycle.
+Only use `start_micro_xrce_agent:=true` when launch-owned lifecycle is an
+explicit requirement.
 
 ## Common Commands
 
-Run all package tests:
+Build the refactored control packages:
 
 ```bash
 source /opt/ros/humble/setup.bash
-colcon test --event-handlers console_direct+
+colcon build --packages-select \
+  policy_inference am_position_mode flying_hand_mode am_ee_pose_commander \
+  figure8_trajectory benchmark_reporting velocity_tracking_benchmark \
+  arm_motion_benchmark aerial_manipulation_benchmark figure8_tracking_benchmark
+```
+
+Run repository-level tests:
+
+```bash
+python3 -m unittest discover -s tests
+```
+
+Run package tests and inspect their aggregate result:
+
+```bash
+colcon test --packages-select \
+  policy_inference am_position_mode flying_hand_mode am_ee_pose_commander \
+  figure8_trajectory benchmark_reporting velocity_tracking_benchmark \
+  arm_motion_benchmark aerial_manipulation_benchmark figure8_tracking_benchmark \
+  --event-handlers console_direct+
 colcon test-result --verbose
 ```
 
-Run targeted tests for the real launch agent behavior and AirLink config:
+Launch AM Position:
 
 ```bash
-python3 -m unittest tests.test_micro_xrce_agent_launch tools.airlink.test_configure_airlink
+ros2 launch am_position_mode sim_am_position.launch.py
+ros2 launch am_position_mode real_am_position.launch.py
 ```
 
-Run the RL real-flight Motor mode:
+Launch Figure-8 references:
 
 ```bash
-ros2 launch am_position_mode real_am_position_motor.launch.py
+ros2 launch figure8_trajectory px4_figure8_trajectory.launch.py
+ros2 launch figure8_trajectory ee_figure8_trajectory.launch.py
 ```
 
-Run the RL real-flight CTBR mode:
+Launch the deployment commander and Python benchmarks:
 
 ```bash
-ros2 launch am_position_mode real_am_position_ctbr.launch.py
+ros2 launch am_ee_pose_commander sim_am_ee_pose_commander.launch.py \
+  upper_model_path:=<ABSOLUTE_UPPER_ONNX>
+ros2 launch velocity_tracking_benchmark sim_velocity_tracking_benchmark.launch.py
+ros2 launch arm_motion_benchmark sim_arm_motion_benchmark.launch.py
+ros2 launch aerial_manipulation_benchmark sim_aerial_manipulation_benchmark.launch.py
+ros2 launch figure8_tracking_benchmark sim_px4_figure8_tracking_benchmark.launch.py
 ```
 
-Publish external odometry to PX4:
+Launch Flying Hand profiles:
 
 ```bash
-ros2 launch px4_state_converter generic_odometry.launch.py
+ros2 launch flying_hand_mode sim_flying_hand_quadrotor.launch.py
+ros2 launch flying_hand_mode real_flying_hand_quadrotor_shadow.launch.py
+ros2 launch flying_hand_mode real_flying_hand_fully_actuated_shadow.launch.py
 ```
 
-Run figure-8 Offboard references:
+The fully-actuated closed-loop launch intentionally requires an explicit
+calibrated file:
 
 ```bash
-ros2 launch figure8_trajectory_mode figure8_position_mode.launch.py
-ros2 launch figure8_trajectory_mode figure8_velocity_mode.launch.py
+ros2 launch flying_hand_mode real_flying_hand_fully_actuated.launch.py \
+  config_file:=<ABSOLUTE_CALIBRATED_YAML>
 ```
 
-Run scripted commander references:
-
-```bash
-ros2 launch px4_velocity_commander sim_px4_velocity_commander.launch.py
-ros2 launch px4_velocity_commander real_px4_velocity_commander.launch.py
-ros2 launch arm_trajectory_commander sim_arm_trajectory_commander.launch.py
-ros2 launch arm_trajectory_commander real_arm_trajectory_commander.launch.py
-ros2 launch aerial_manipulator_commander sim_aerial_manipulator_commander.launch.py
-ros2 launch aerial_manipulator_commander real_aerial_manipulator_commander.launch.py
-```
-
-Run Flying Hand profiles:
-
-```bash
-ros2 launch flying_hand_quadrotor_mode sim_flying_hand_quadrotor.launch.py
-ros2 launch flying_hand_quadrotor_mode real_flying_hand_quadrotor_shadow.launch.py
-ros2 launch flying_hand_fully_actuated_mode \
-  real_flying_hand_fully_actuated_shadow.launch.py
-```
-
-The fully actuated closed-loop launch intentionally has no default config. Do
-not invent calibration values or bypass its `closed_loop` plus
-`calibration_confirmed` gate. Rotor geometry, axes, moment ratios, thrust
-curves, actuator ordering, and PX4 `CA_ROTOR*` settings form one calibration
-contract.
-
-Prefer the explicit `sim_*` or `real_*` entry points in new docs and tests.
-Simulation configs set `use_sim_time: true` and default to ACESim bridge topics:
-`/acesim/clock` for time and `/acesim/vehicle/odometry` for vehicle pose
-feedback. The commander timers are steady timers that sample the configured
-simulation clock when it is active. Keep clock fallback policy out of
-`arm_trajectory_commander` YAML unless a test explicitly needs to exercise it;
-ACETele mock/follower runs may not publish a clock.
-For `arm_trajectory_commander`, keep handshake internals out of YAML configs:
-sim behavior is relaxed by `use_sim_time: true`, while real behavior remains
-strict with `use_sim_time: false`.
-
-ACEPliot commander sim launch files do not start ACESim. For integrated
-simulation, start ACESim separately, for example:
+Start ACESim separately before an ACEPliot sim launch. ACEPliot does not own the
+simulator lifecycle:
 
 ```bash
 ros2 launch acesim_ros2 linux.launch.py ace_follower:=auto
-ros2 launch aerial_manipulator_commander sim_aerial_manipulator_commander.launch.py
 ```
 
-Configure the MAVLink ground-station link:
-
-```bash
-./tools/airlink/configure_airlink.sh
-sudo journalctl -u mavlink-router -f
-```
-
-Run code-quality hooks when available:
-
-```bash
-pre-commit run --all-files
-```
+Simulation defaults use `/acesim/clock`, `/acesim/vehicle/odometry`, and the
+`/ace_follower/*` handshake topics.
 
 ## Development Conventions
 
-- Prefer small, scoped changes that respect existing ROS package boundaries.
-- Read the relevant `package.xml`, `CMakeLists.txt`, launch files, configs, and
-  tests before editing a package.
-- Keep C++ changes compatible with the existing CMake baseline: C++17 with
-  `-Wall -Wextra -Wpedantic -Werror` where enabled.
-- Avoid changing PX4 / ROS topic names, frame conventions, timestamps, QoS,
-  launch defaults, real-flight ports, or model paths unless the task explicitly
-  requires it.
-- Preserve simulation and real-flight configuration differences. Do not turn a
-  local serial device, private IP address, username, or absolute model path into
-  a project default.
-- Use structured parsers or existing helper code for YAML, XML, TOML, and CMake
-  data where practical. Avoid brittle ad hoc string edits.
-- Do not edit `third_party/` unless the task explicitly involves vendored or
-  upstream dependency synchronization.
-- Treat `third_party/px4_msgs/` and the PX4 ROS 2 interface library as interface
-  material. Message, service, or interface changes require rebuild notes.
-- Keep Flying Hand frame and allocation conventions explicit: PX4 vehicle and
-  wrench state is NED/FRD, arm kinematics are defined by each controller, and
-  full-actuation rotor arrays are rotor-major. Reject rank-deficient or poorly
-  conditioned allocation matrices rather than silently regularizing them.
-- Generated ACADOS C code is checked-in deployment input. Change its generator
-  and regenerate from the pinned `acados_vendor` source; do not hand-edit only
-  the generated files. Keep solver symbols mode-specific so both modes can be
-  linked in one workspace.
-- Do not describe `flying_hand_fully_actuated_mode` as an official source port
-  or hardware-validated controller. The public papers do not supply the full
-  MPC/MuJoCo implementation or exact environment/self-collision constraints.
-- Do not commit large model weights, flight logs, rosbag files, generated build
-  products, or personal IDE / agent configuration unless the repository
-  convention explicitly allows it.
+- Read the package's `package.xml`, `CMakeLists.txt`, launch, config, and tests
+  before changing behavior.
+- Keep changes scoped to established package boundaries, C++17 deployment
+  code, and Python 3.10 benchmark code.
+- Preserve `-Wall -Wextra -Wpedantic -Werror` compatibility where enabled.
+- Use structured parsers for YAML, XML, JSON, and CMake data when a suitable
+  parser already exists. Avoid broad string rewrites.
+- Keep topic defaults absolute, including the leading `/`.
+- Preserve simulation and real-flight differences. Never turn a private IP,
+  serial device, username, or local model path into a repository default.
+- Do not edit `third_party/` unless dependency synchronization is explicitly
+  requested.
+
+AM Position contract:
+
+- The only executable and display mode is `am_position_mode` / `AM Position`.
+- The only accepted deployment semantics is `body_rate_thrust_raw` with FLU
+  policy rates, FRD publication, and `sigmoid_2x` collective preprocessing.
+- The thrust scale parameter is `collective_scale`.
+- Publish only `RatesSetpointType` body rates and thrust. Do not reintroduce
+  direct-motor output or variant inheritance.
+- Keep ONNX Runtime details in `policy_inference`; ROS parameters, vehicle
+  state, command mapping, and flight logs belong to the mode.
+
+AM EE Pose contract:
+
+- The commander runs only the upper policy. PX4 firmware owns the AM Offboard
+  low-level policy and actuator output.
+- Keep five preview poses at offsets `0`, `0.02`, `0.04`, `0.06`, and `1.0 s`;
+  63 upper observations; 8 actions; 50 Hz upper and arm updates; 64-value GRU
+  state where the deployed model declares it.
+- With no trajectory preview, hold the initial EE pose.
+- A model using ONNX external data requires its referenced `.data` file. Do not
+  download or invent weights in code.
+- Do not claim reproduction of ACELab self-collision termination when deployment
+  telemetry provides no equivalent contact signal.
+
+Command ownership:
+
+- Only one process may publish `/fmu/in/offboard_control_mode` and
+  `/fmu/in/trajectory_setpoint` for a vehicle.
+- Use `ee_figure8_trajectory` beside `am_ee_pose_commander`; do not run the
+  direct PX4 Figure-8 trajectory at the same time.
+- ACETele gripper state is a normalized public value, not raw `joint_5` radians.
+- Flying Hand variants and arm-motion workloads share `/ace_leader/*` and
+  `/ace_follower/*`; do not run competing publishers.
+
+Figure-8 contract:
+
+- Use physical parameters `period_s`, `amplitude_x_m`, `amplitude_y_m`,
+  `max_linear_speed_m_s`, `transition_time_s`, and `loops_to_run`.
+- Geometry is `x=x0+Ax*sin(phase)`, `y=y0+Ay*sin(2*phase)`; Y amplitude is the
+  actual peak.
+- Validate `omega*sqrt(Ax^2+4*Ay^2)` against the speed limit.
+- EE ramp-in changes phase speed with smooth5. Do not ramp amplitude.
+- Count finite loops from actual accumulated phase and hold the origin when
+  complete.
+- Publish `/figure8_trajectory/{px4,ee}/status` using `waiting`, `running`,
+  `finished`, or `failed`; finite runs must return to the origin and exit.
+
+Benchmark contract:
+
+- Benchmark workloads and reporting are Python 3 / `ament_python`; deployment
+  commanders, PX4 External Modes, and their control libraries remain C++.
+- Simulation workloads advance only from `/acesim/clock`; do not add wall-time
+  fallback to a simulation benchmark.
+- Reports use bounded timestamp interpolation without extrapolation and write
+  CSV/JSON plus headless PNG/SVG/PDF figure bundles before launch shutdown.
+- Spatial trajectory figures use an equal-scale ENU 3D hero panel with XY,
+  XZ, and YZ projections. Keep raw samples unsmoothed and SVG text editable.
+- Default artifacts belong in `benchmarks/<package>/logs/<UTC_TIMESTAMP>/`;
+  keep package-local `logs/` directories untracked.
+- `arm_motion_benchmark` drives the arm but reports only base position drift.
+  Do not subscribe to follower joint or gripper state from its reporter.
+
+Flying Hand contract:
+
+- Keep shared runtime and both controllers in `flying_hand_mode`, but preserve
+  separate solver, controller, calibration, and generated-symbol boundaries.
+- PX4 vehicle and wrench state uses NED/FRD. Fully-actuated rotor arrays are
+  rotor-major.
+- Reject invalid, rank-deficient, or poorly conditioned allocation matrices.
+- Shadow mode must never publish execution commands.
+- Never bypass `closed_loop` and `calibration_confirmed` gates.
+- Generated ACADOS code is checked-in deployment input. Change its generator
+  and regenerate against the pinned vendor; do not hand-edit only generated C.
+- The fully-actuated implementation is a paper-based reconstruction, not an
+  official source port or hardware-validation claim.
 
 ## Commit Notes
 
-- Do not create commits unless the user explicitly asks for a commit.
-- Keep each commit focused on one logical change. Do not mix documentation,
-  launch behavior, generated files, dependency updates, and unrelated cleanup in
-  the same commit.
-- Before staging, inspect `git status --short` and `git diff`. Stage only files
-  that belong to the requested change, and do not stage unrelated user edits.
-- Before committing, run the narrowest relevant verification commands and record
-  any failures, skipped checks, or missing dependencies in the final response.
-- Prefer clear, scoped commit messages, for example:
+- Do not create a commit unless the user explicitly asks.
+- Inspect `git status --short` and `git diff` before staging.
+- Preserve unrelated user changes in a dirty worktree.
+- Keep each commit focused on one logical change and give every non-root change
+  an informative scope.
+- Match the message to the actual diff. Examples:
 
 ```text
-docs: align README with ACESim style
-fix(px4-state): make MicroXRCEAgent launch opt-in
-test(airlink): cover UDP config rendering
-feat(trajectory): add figure-eight velocity option
+refactor(am-position): merge policy runtime into mode
+refactor(flying-hand): consolidate controller packages
+feat(figure8): publish end-effector target previews
+fix(airlink): preserve qgc udp forwarding
+docs(repo): document package ownership
 ```
 
-- If a change touches `third_party/px4_msgs/`,
-  `third_party/px4-ros2-interface-lib/`, `third_party/mavlink-router/`, or any
-  other submodule, commit inside that submodule first. Then return to the
-  ACEPliot parent repository and commit the updated gitlink.
-- Do not commit only the parent repository's view of a dirty submodule working
-  tree. Other users cannot reproduce that state.
-- If the user asks for a PR summary, include purpose, main files or ROS packages
-  changed, tests run, environment assumptions, and whether topics, ports,
-  coordinate frames, config formats, or real-flight behavior changed.
+- Run the narrowest relevant tests before committing and report failures or
+  missing dependencies.
+- For a submodule change, commit inside the submodule first, then commit the
+  parent gitlink. Never commit only the parent's view of a dirty submodule.
+- Do not commit model weights, flight logs, rosbags, build products, or personal
+  IDE and agent configuration unless repository policy explicitly requires it.
 
 ## Subagent Use
 
-Subagents are allowed and encouraged when they make the work safer or faster.
-The main agent remains responsible for integration and review.
+Subagents may be used freely for independent work. The primary agent remains
+responsible for integration and review.
 
-- Good subagent tasks include independent read-only investigations, package
-  audits, test-result triage, documentation consistency checks, and bounded
-  edits with disjoint file ownership.
-- Do not let multiple subagents edit the same file, CMake target, launch entry,
-  YAML config, or generated artifact.
-- Tell every subagent that it is not alone in the repository and must not revert
-  or overwrite unrelated changes.
-- Require subagent summaries to cite repository-relative paths and concrete
-  project facts.
-- Do not preserve local usernames, private paths, session sandbox details, IDE
-  tab state, or temporary analysis output as long-term project rules.
-- Re-check subagent conclusions before reporting changes that affect real
-  flight, PX4 topics, AirLink, `MicroXRCEAgent`, or control behavior.
+- Give each subagent a concrete, bounded task and disjoint write ownership.
+- Never assign two agents to the same file, CMake target, launch/config pair, or
+  generated solver.
+- Tell subagents not to revert unrelated changes in the shared worktree.
+- Prefer parallel package implementation, read-only audits, test triage, and
+  documentation consistency checks.
+- Require a summary of changed paths and verification results.
+- Re-check all conclusions that affect real flight, PX4 topics, frame
+  conversion, AirLink, allocator output, or `MicroXRCEAgent` lifecycle.
 
 ## Testing Notes
 
-Useful targeted checks:
+Scale tests with the changed behavior. A launch rename needs static and
+`--show-args` checks; shared inference or controller changes need focused unit
+tests plus dependent-package builds; real-flight safety changes need human
+hardware validation.
+
+Useful checks:
 
 ```bash
-colcon build --packages-select rl_base_mode
-colcon build --packages-select am_position_mode
-colcon build --packages-select px4_state_converter
-colcon build --packages-select figure8_trajectory_mode
-colcon build --packages-select px4_velocity_commander
-colcon build --packages-select arm_trajectory_commander
-colcon build --packages-select aerial_manipulator_commander
-colcon build --packages-select flying_hand_control_common
-colcon build --packages-select flying_hand_quadrotor_mode
-colcon build --packages-select flying_hand_fully_actuated_mode
-```
-
-```bash
-colcon test --packages-select am_position_mode --event-handlers console_direct+
-colcon test --packages-select px4_state_converter --event-handlers console_direct+
-colcon test --packages-select figure8_trajectory_mode --event-handlers console_direct+
-colcon test --packages-select px4_velocity_commander --event-handlers console_direct+
-colcon test --packages-select arm_trajectory_commander --event-handlers console_direct+
-colcon test --packages-select aerial_manipulator_commander --event-handlers console_direct+
-colcon test --packages-select flying_hand_control_common --event-handlers console_direct+
-colcon test --packages-select flying_hand_quadrotor_mode --event-handlers console_direct+
-colcon test --packages-select flying_hand_fully_actuated_mode --event-handlers console_direct+
-python3 -m unittest tools.launch.test_commander_launch
-python3 -m unittest tools.launch.test_flying_hand_mode_launch
+python3 -m unittest discover -s tests
+colcon build --packages-select <CHANGED_PACKAGES>
+colcon test --packages-select <CHANGED_PACKAGES> --event-handlers console_direct+
 colcon test-result --verbose
+pre-commit run --all-files
 ```
 
-Some checks require ROS 2, PX4 interface packages, `onnxruntime_vendor`,
-`MicroXRCEAgent`, `mavlink-routerd`, or network access for ROS XML schema
-validation. If a dependency is missing, report the missing environment
-requirement instead of masking the failure.
+Some checks require ROS 2, PX4 interfaces, ONNX Runtime, ACADOS,
+`MicroXRCEAgent`, `mavlink-routerd`, or network access. Report a missing
+dependency accurately instead of masking it as a source failure.
 
-Real-flight changes need explicit human validation on the target hardware.
-Never claim hardware validation unless the command was run on the relevant
+Never claim real-flight validation unless the command ran on the relevant
 vehicle, companion computer, and ground-station setup.
 
 ## Documentation Notes
 
-- The root `README.md` follows the Best-README-Template rhythm used by ACESim
-  while keeping ACEPliot-specific Chinese content.
-- Update `README.md` when adding or removing ROS packages, launch files, config
-  files, user-facing commands, default topics, ports, model paths, dependencies,
-  or real-flight procedures.
-- Keep the distinction clear between PX4-side `uxrce_dds_client` and
-  companion-computer-side `MicroXRCEAgent`.
-- Document changes to AirLink, MAVLink ports, PX4 external modes, trajectory
-  generation, state conversion, and test commands in the same change that
-  modifies the behavior.
-- Keep this guide environment-independent. Project rules should not depend on a
-  current username, shell, timezone, editor state, local IP address, or agent
-  runtime implementation.
+- Update `README.md` and this guide when package paths, launch files, public
+  parameters, topic names, ports, frame conventions, model contracts, or
+  real-flight procedures change.
+- Keep the root README Chinese-first and organized in the ACESim-style
+  Best-README-Template rhythm.
+- Keep the distinction between PX4-side `uxrce_dds_client` and companion-side
+  `MicroXRCEAgent` explicit.
+- Use `<ACEPliot_ROOT>` and placeholder absolute paths. Never preserve local
+  usernames, home directories, IDE state, or temporary analysis in docs.
