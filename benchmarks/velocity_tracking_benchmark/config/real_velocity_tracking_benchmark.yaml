@@ -1,15 +1,18 @@
 /**:
   ros__parameters:
-    use_sim_time: false
+    use_sim_clock: false
     publish_rate_hz: 50.0
     measurement_source: pose_stamped
-    mocap_pose_topic: xxy/pose
+    mocap_pose_topic: /xxy/pose
+    vehicle_position_source: pose_stamped
+    vehicle_pose_topic: /xxy/pose
     velocity_frame_id: world
     offboard_control_mode_topic: /fmu/in/offboard_control_mode
     trajectory_setpoint_topic: /fmu/in/trajectory_setpoint
-    command_velocity_topic: /px4_velocity_commander/command_velocity
-    measured_velocity_topic: /px4_velocity_commander/measured_velocity
-    velocity_error_topic: /px4_velocity_commander/velocity_error
+    command_velocity_topic: /velocity_tracking_benchmark/command_velocity
+    measured_velocity_topic: /velocity_tracking_benchmark/measured_velocity
+    velocity_error_topic: /velocity_tracking_benchmark/velocity_error
+    status_topic: /velocity_tracking_benchmark/status
 
     profile.durations_s: [2.0, 2.0, 2.0, 2.0]
     profile.vx_m_s: [1.0, 0.0, 0.0, 0.0]
