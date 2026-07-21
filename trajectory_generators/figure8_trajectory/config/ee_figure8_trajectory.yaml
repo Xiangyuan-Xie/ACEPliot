@@ -1,0 +1,18 @@
+/**:
+  ros__parameters:
+    use_sim_clock: true
+    sim_clock_topic: /acesim/clock
+    publish_rate_hz: 50.0
+    current_ee_pose_topic: /am_ee_pose/current_ee_pose
+    target_preview_topic: /am_ee_pose/trajectory_preview
+    reference_pose_topic: /figure8_trajectory/ee/reference_pose
+    reference_velocity_topic: /figure8_trajectory/ee/reference_velocity
+    status_topic: /figure8_trajectory/ee/status
+    target_frame_id: world
+
+    period_s: 20.0
+    amplitude_x_m: 0.5
+    amplitude_y_m: 0.25
+    max_linear_speed_m_s: 0.25
+    transition_time_s: 5.0
+    loops_to_run: 0

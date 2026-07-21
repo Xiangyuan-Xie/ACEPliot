@@ -1,0 +1,20 @@
+/**:
+  ros__parameters:
+    use_sim_clock: false
+    sim_clock_topic: /acesim/clock
+    publish_rate_hz: 50.0
+    vehicle_odometry_topic: /fmu/out/vehicle_odometry
+    offboard_control_mode_topic: /fmu/in/offboard_control_mode
+    trajectory_setpoint_topic: /fmu/in/trajectory_setpoint
+    reference_pose_topic: /figure8_trajectory/px4/reference_pose
+    reference_velocity_topic: /figure8_trajectory/px4/reference_velocity
+    status_topic: /figure8_trajectory/px4/status
+    path_topic: /figure8_trajectory/px4/path
+    publish_path: true
+
+    period_s: 10.0
+    amplitude_x_m: 1.0
+    amplitude_y_m: 0.5
+    max_linear_speed_m_s: 1.0
+    transition_time_s: 1.0
+    loops_to_run: 5
