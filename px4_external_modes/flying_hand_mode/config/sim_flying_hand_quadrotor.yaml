@@ -1,0 +1,41 @@
+flying_hand_quadrotor:
+  ros__parameters:
+    closed_loop: true
+    adaptive_enabled: true
+    control_rate_hz: 100.0
+    state_timeout_ms: 20.0
+    vehicle_status_timeout_ms: 750.0
+    land_state_timeout_ms: 1500.0
+    solver_budget_ms: 8.0
+    solver_timeout_limit: 3
+    fault_hold_ms: 100.0
+    stop_hold_ms: 1000.0
+    target_position_slew_m_s: 0.5
+    target_orientation_slew_rad_s: 0.8
+    collective_slew_n_s: 120.0
+    moment_slew_nm_s: [20.0, 20.0, 2.0]
+    # PX4 SITL airframe 10016_none_iris allocator geometry.
+    px4_allocator_rotor_position_x: [0.1515, -0.1515, 0.1515, -0.1515]
+    px4_allocator_rotor_position_y: [0.245, -0.1875, -0.245, 0.1875]
+    px4_allocator_rotor_moment_ratio: [0.05, 0.05, -0.05, -0.05]
+    follower_status_timeout_ms: 500.0
+    initial_gripper_open_fraction: 1.0
+    target_frame: px4_local_ned
+    px4_topic_namespace_prefix: ""
+    vehicle_odometry_topic: /fmu/out/vehicle_odometry
+    sensor_combined_topic: /fmu/out/sensor_combined
+    vehicle_status_topic: /fmu/out/vehicle_status
+    vehicle_land_detected_topic: /fmu/out/vehicle_land_detected
+    follower_arm_state_topic: /ace_follower/arm/state
+    follower_sync_status_topic: /ace_follower/arm/sync_status
+    ee_pose_setpoint_topic: /flying_hand_quadrotor/ee_pose_setpoint
+    arm_command_topic: /ace_leader/arm/command
+    gripper_command_topic: /ace_leader/gripper/command
+    sync_mode_topic: /ace_leader/arm/sync_mode
+    ee_pose_topic: /flying_hand_quadrotor/ee_pose
+    nominal_wrench_topic: /flying_hand_quadrotor/wrench_nominal
+    adaptive_wrench_topic: /flying_hand_quadrotor/wrench_adaptive
+    applied_wrench_topic: /flying_hand_quadrotor/wrench_applied
+    status_topic: /flying_hand_quadrotor/status
+    arm_joint_names: [joint_1, joint_2, joint_3, joint_4]
+    gripper_joint_name: joint_5
