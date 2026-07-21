@@ -50,6 +50,7 @@ px4_external_modes/*/weights/.gitkeep
 
 # Logs
 px4_external_modes/*/logs/
+benchmarks/*/logs/
 analysis_outputs/
 
 # ROS 2 / colcon
