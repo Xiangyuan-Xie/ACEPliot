@@ -2,31 +2,33 @@
 <?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
 <package format="3">
   <name>am_position_mode</name>
-  <version>0.0.1</version>
-  <description>RL modes for PX4</description>
+  <version>0.1.0</version>
+  <description>PX4 AM Position external mode using a body-rate and thrust policy.</description>
   <maintainer email="dragonboat_xxy@163.com">Xiangyuan Xie</maintainer>
   <license>Apache License 2.0</license>
 
-  <buildtool_depend>eigen3_cmake_module</buildtool_depend>
   <buildtool_depend>ament_cmake</buildtool_depend>
+  <buildtool_depend>eigen3_cmake_module</buildtool_depend>
   <buildtool_export_depend>eigen3_cmake_module</buildtool_export_depend>
 
-  <build_depend>eigen</build_depend>
-  <build_depend>rclcpp</build_depend>
-  <build_export_depend>eigen</build_export_depend>
-
-  <depend>px4_ros2_cpp</depend>
-  <depend>rl_base_mode</depend>
-  <depend>std_msgs</depend>
-  <depend>sensor_msgs</depend>
+  <depend>eigen</depend>
   <depend>geometry_msgs</depend>
-  <depend>rosgraph_msgs</depend>
+  <depend>nav_msgs</depend>
+  <depend>policy_inference</depend>
   <depend>px4_msgs</depend>
+  <depend>px4_ros2_cpp</depend>
+  <depend>rclcpp</depend>
+  <depend>rosbag2_cpp</depend>
+  <depend>rosbag2_storage</depend>
+  <depend>rosgraph_msgs</depend>
+  <depend>sensor_msgs</depend>
+  <depend>std_msgs</depend>
+  <depend>tf2_msgs</depend>
   <exec_depend>python3-yaml</exec_depend>
 
+  <test_depend>ament_cmake_gtest</test_depend>
   <test_depend>ament_lint_auto</test_depend>
   <test_depend>ament_lint_common</test_depend>
-  <test_depend>ament_cmake_gtest</test_depend>
 
   <export>
     <build_type>ament_cmake</build_type>

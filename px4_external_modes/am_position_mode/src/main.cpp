@@ -10,18 +10,18 @@
  * SPDX-License-Identifier: Apache-2.0
  ****************************************************************************/
 
-#include <rclcpp/rclcpp.hpp>
-#include <am_position_motor_mode.hpp>
+#include <am_position_mode.hpp>
 #include <px4_ros2/components/node_with_mode.hpp>
+#include <rclcpp/rclcpp.hpp>
 
-static constexpr char kNodeName[] = "am_position_motor";
+static constexpr char kNodeName[] = "am_position";
 static constexpr bool kEnableDebugOutput = true;
 
 int main(int argc, char * argv[])
 {
   rclcpp::init(argc, argv);
   rclcpp::spin(
-    std::make_shared<px4_ros2::NodeWithMode<AmPositionMotorMode>>(
+    std::make_shared<px4_ros2::NodeWithMode<am_position_mode::AmPositionMode>>(
       kNodeName,
       kEnableDebugOutput));
   rclcpp::shutdown();

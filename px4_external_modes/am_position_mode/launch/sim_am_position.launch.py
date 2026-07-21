@@ -6,12 +6,13 @@ from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument
 from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
+from launch_ros.parameter_descriptions import ParameterValue
 
 
 def generate_launch_description() -> LaunchDescription:
     pkg_am_position_mode = get_package_share_directory('am_position_mode')
     config_file = os.path.join(
-        pkg_am_position_mode, 'config', 'sim_am_position_ctbr.yaml')
+        pkg_am_position_mode, 'config', 'sim_am_position.yaml')
     with open(config_file, 'r', encoding='utf-8') as file:
         config = yaml.safe_load(file)
 
@@ -19,13 +20,15 @@ def generate_launch_description() -> LaunchDescription:
     model_path = mode_config['model_path']
     if not os.path.isabs(model_path):
         model_path = os.path.join(pkg_am_position_mode, model_path)
+    metadata_path = mode_config.get(
+        'metadata_path', os.path.splitext(model_path)[0] + '.json')
+    if not os.path.isabs(metadata_path):
+        metadata_path = os.path.join(pkg_am_position_mode, metadata_path)
 
-    config_file_arg = DeclareLaunchArgument(
-        'config_file', default_value=config_file, description='YAML config file')
     model_path_arg = DeclareLaunchArgument(
         'model_path', default_value=model_path, description='ONNX Model Path')
     metadata_path_arg = DeclareLaunchArgument(
-        'metadata_path', default_value=mode_config.get('metadata_path', os.path.splitext(model_path)[0] + '.json'),
+        'metadata_path', default_value=metadata_path,
         description='Policy metadata JSON path')
     use_sim_time_arg = DeclareLaunchArgument(
         'use_sim_time', default_value=str(mode_config['use_sim_time']).lower(),
@@ -43,27 +46,37 @@ def generate_launch_description() -> LaunchDescription:
         'trajectory_setpoint_topic', default_value=mode_config['trajectory_setpoint_topic'],
         description='PX4 TrajectorySetpoint topic')
     offboard_setpoint_timeout_s_arg = DeclareLaunchArgument(
-        'offboard_setpoint_timeout_s', default_value=str(mode_config.get('offboard_setpoint_timeout_s', 0.5)),
+        'offboard_setpoint_timeout_s',
+        default_value=str(mode_config.get('offboard_setpoint_timeout_s', 0.5)),
         description='Timeout for external Offboard references in seconds')
+    collective_scale_arg = DeclareLaunchArgument(
+        'collective_scale', default_value=str(mode_config.get('collective_scale', 1.0)),
+        description='Scale applied to the normalized collective thrust command')
 
     position_mode_node = Node(
         package='am_position_mode',
-        executable='am_position_ctbr_mode',
+        executable='am_position_mode',
+        name='am_position',
         parameters=[{
             'model_path': LaunchConfiguration('model_path'),
             'metadata_path': LaunchConfiguration('metadata_path'),
-            'use_sim_time': LaunchConfiguration('use_sim_time'),
+            'use_sim_time': ParameterValue(
+                LaunchConfiguration('use_sim_time'), value_type=bool),
             'sim_clock_topic': LaunchConfiguration('sim_clock_topic'),
-            'use_ros2_odom': LaunchConfiguration('use_ros2_odom'),
+            'use_ros2_odom': ParameterValue(
+                LaunchConfiguration('use_ros2_odom'), value_type=bool),
             'offboard_control_mode_topic': LaunchConfiguration('offboard_control_mode_topic'),
             'trajectory_setpoint_topic': LaunchConfiguration('trajectory_setpoint_topic'),
-            'offboard_setpoint_timeout_s': LaunchConfiguration('offboard_setpoint_timeout_s'),
-            'ctbr_collective_scale': mode_config.get('ctbr_collective_scale', 1.0),
+            'offboard_setpoint_timeout_s': ParameterValue(
+                LaunchConfiguration('offboard_setpoint_timeout_s'),
+                value_type=float),
+            'collective_scale': ParameterValue(
+                LaunchConfiguration('collective_scale'), value_type=float),
         }],
+        output='screen',
     )
 
     return LaunchDescription([
-        config_file_arg,
         model_path_arg,
         metadata_path_arg,
         use_sim_time_arg,
@@ -72,5 +85,6 @@ def generate_launch_description() -> LaunchDescription:
         offboard_control_mode_topic_arg,
         trajectory_setpoint_topic_arg,
         offboard_setpoint_timeout_s_arg,
+        collective_scale_arg,
         position_mode_node,
     ])

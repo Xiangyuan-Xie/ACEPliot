@@ -13,12 +13,7 @@ LAUNCH_FILES = [
     / "px4_external_modes"
     / "am_position_mode"
     / "launch"
-    / "real_am_position_motor.launch.py",
-    REPO_ROOT
-    / "px4_external_modes"
-    / "am_position_mode"
-    / "launch"
-    / "real_am_position_ctbr.launch.py",
+    / "real_am_position.launch.py",
 ]
 
 
